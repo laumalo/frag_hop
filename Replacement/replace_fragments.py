@@ -17,8 +17,8 @@ class InputStructure:
     # Add any attibute or method that you consider
 
     def __load_to_mdtraj(self):
-        if self.top:
-            self.structure = md.load(self.input_file, top=self.top_file)
+        if self.top_file:
+            self.structure = md.load(self.input_file, top_file=self.top_file)
         else:
             self.structure = md.load(self.input_file)
 
@@ -48,6 +48,9 @@ class Replacer:
 
     def set_fragment_link(self, bond):
         self.fragment.set_bond_to_link(bond)
+
+    def change_fragment(self, fragment_file, fragment_top=None):
+        self.fragment = InputStructure(fragment_file, top_file=fragment_top)
 
     def superimpose_fragment_bond(self):
         # To FILL

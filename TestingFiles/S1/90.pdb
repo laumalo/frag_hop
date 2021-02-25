@@ -1,0 +1,13 @@
+HETATM    1  C1  FRG L  1       6.747 -17.899 105.178  1.00  0.00           C  
+HETATM    2  C2  FRG L  1       7.084 -17.521 103.876  1.00  0.00           C  
+HETATM    3  N1  FRG L  1       8.324 -17.766 103.514  1.00  0.00           N  
+HETATM    4  N2  FRG L  1       9.100 -18.396 104.467  1.00  0.00           N  
+HETATM    5  S1  FRG L  1       8.147 -18.710 105.847  1.00  0.00           S  
+HETATM    6  H1  FRG L  1       6.420 -17.067 103.156  1.00  0.00           H  
+HETATM    7  H2  FRG L  1       5.791 -17.887 105.708  1.00  0.00           H  
+CONECT    1    2    2    5    7
+CONECT    2    3    6
+CONECT    3    4    4
+CONECT    4    5
+END
+
