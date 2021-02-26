@@ -1,5 +1,5 @@
 import mdtraj as md
-
+from rdkit import Chem
 
 class InputStructure:
     """Object to modify scaffold and fragments structures"""
@@ -9,6 +9,9 @@ class InputStructure:
         self.top_file = top_file
         self.structure = None
         self.__load_to_mdtraj()
+        self.rdkit_representation = None
+        self.__load_to_rdkit()
+
         if bond_link:
             self.set_bond_to_link(bond_link)
         else:
@@ -21,6 +24,11 @@ class InputStructure:
             self.structure = md.load(self.input_file, top_file=self.top_file)
         else:
             self.structure = md.load(self.input_file)
+
+    def __load_to_rdkit(self):
+        # Depending on the metric we might need the rdkit representation
+        self.rdkit_representation = Chem.rdmolfiles.MolFromPDBFile(
+                                            self.input_file, removeHs=False)
 
     def set_bond_to_link(self, new_bond):
         if type(new_bond) is list:
@@ -37,7 +45,8 @@ class Replacer:
 
     """Class to replace fragments"""
 
-    def __init__(self, initial_complex, fragment, top_complex=None, top_fragment=None):
+    def __init__(self, initial_complex, fragment, top_complex=None,
+                 top_fragment=None):
         self.initial_complex = InputStructure(
             initial_complex, top_file=top_complex)
         self.fragment = InputStructure(fragment, top_file=top_fragment)
@@ -64,9 +73,9 @@ class Replacer:
 
     def compute_fragment_rmsd(self, trajA, trajB):
         """
-        It computes the rmsd between two trajectories.
+        It computes the RMSD between two trajectories.
 
-        # IT HAS TO BE MODIFIED FROR FRAGMENTS THAT ARE NOT REALLY SIMILAR
+        # IT HAS TO BE MODIFIED FOR FRAGMENTS THAT ARE NOT REALLY SIMILAR
         """
         def traj_to_coords_list(traj):
             """
@@ -115,5 +124,52 @@ class Replacer:
         allcoordsB = traj_to_coords_list(trajB)
         return rmsd(allcoordsA, allcoordsB)
 
-    def compute_fragment_tfd(self):
-        pass
+    def compute_fragment_usr(self, rdkit_molA, rdkit_molB):
+        """
+        Performs a shape similarity calculation between two small molecules
+        using the Ultrafast Shape Recognition (USR) descriptor with the RDKit
+        implementation.
+
+        Parameters
+        ----------
+        rdkit_molA : an rdkit.Chem.rdchem.Mol object
+            RDKit's Molecule object of the reference fragment.
+        rdkit_molB : an rdkit.Chem.rdchem.Mol object
+            RDKit's Molecule object of the candidate fragment orientation.
+
+        Returns
+        -------
+        s : float
+            Shape similarity coefficient.
+        """
+        def s(USR1, USR2):
+            """
+            Finds the shape similarity coefficient between two USR descriptors.
+
+            Implementation based on: Front. Chem., 25 July 2018 |
+            https://doi.org/10.3389/fchem.2018.00315
+
+            Parameters
+            ----------
+
+            USR1 : list
+                USR descriptor for one conformer of a molecule.
+            USR2 : list
+                USR descriptor for one conformer of a molecule.
+
+            Returns
+            -------
+
+            rmsd : float
+                Shape Similarity coefficient.
+            """
+
+            deviation = sum( (a-b)**2 for a, b in zip(USR1, USR2) )
+            return 1/(1 + (1/12)*deviation)
+
+        from rdkit.Chem import rdMolDescriptors
+
+        # Shape similarity coefficient
+        usr1 = rdMolDescriptors.GetUSR(rdkit_molA)
+        usr2 = rdMolDescriptors.GetUSR(rdkit_molB)
+        return s(usr1,usr2)
