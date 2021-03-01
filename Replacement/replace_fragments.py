@@ -5,11 +5,12 @@ from lib_prep.FragmentTools import tree_detector
 class InputStructure:
     """Object to modify scaffold and fragments structures"""
     
-    def __init__(self, input_file, bond_link=None, top_file=None, chain="L"):
+    def __init__(self, input_file, bond_link=None, top_file=None, chain="L", resnum=None):
         self.input_file = input_file
         self.top_file = top_file
         self.structure = None
         self.chain = chain
+        self.resnum = resnum
         self.__load_to_mdtraj()
         if bond_link:
             self.set_bond_to_link(bond_link)
@@ -35,20 +36,21 @@ class InputStructure:
 
     def get_atoms_to_delete(self):
         if self.bond_link:
-            atoms_to_delete = tree_detector.main(self.input_file, self.bond_link[0], self.bond_link[1],
-                                                 chain=chain)
+            atoms_to_delete = tree_detector.main(self.input_file, self.bond_link,
+                                                 chain=self.chain, resnum=self.resnum)
         else:
-            raise ValueError("Non-defined bond to link. Set it before deleting atoms!"
+            raise ValueError("Non-defined bond to link. Set it before deleting atoms!")
         return atoms_to_delete
     
 class Replacer:
 
     """Class to replace fragments"""
 
-    def __init__(self, initial_complex, fragment, top_complex=None, top_fragment=None,
-                 chain_complex="L", chain_fragment="L"):
+    def __init__(self, initial_complex, fragment, ligand_resnum, 
+                 top_complex=None, top_fragment=None, chain_complex="A", 
+                 chain_fragment="L"):
         self.initial_complex = InputStructure(initial_complex, top_file=top_complex,
-                                              chain=chain_complex)
+                                              chain=chain_complex, resnum=ligand_resnum)
         self.fragment = InputStructure(fragment, top_file=top_fragment,
                                        chain=chain_fragment)
 
