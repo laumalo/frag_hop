@@ -48,11 +48,13 @@ class Replacer:
 
     def __init__(self, initial_complex, fragment, ligand_resnum, 
                  top_complex=None, top_fragment=None, chain_complex="A", 
-                 chain_fragment="L"):
+                 chain_fragment="L", bond_type='single'):
         self.initial_complex = InputStructure(initial_complex, top_file=top_complex,
                                               chain=chain_complex, resnum=ligand_resnum)
         self.fragment = InputStructure(fragment, top_file=top_fragment,
                                        chain=chain_fragment)
+        self.combination = None
+        self.bond_type = bond_type
 
     # Add any attibute or method that you consider
 
