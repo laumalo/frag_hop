@@ -1,5 +1,4 @@
 import collections
-import sys
 import os
 import numpy as np
 
@@ -20,14 +19,12 @@ class PDBTools():
             """
             prev_res = None
             for line_idx, line in enumerate(fhandle):
-                if line.startswith('HETATM'):
+                if line.startswith('HETATM') or line.startswith('ATOM'):
                     element = line[76:78].strip()
                     if not element:
-                        emsg = \
+                        print(
                             'ERROR!! No element found in line {}'.format(
-                                line_idx)
-                        sys.stderr.write(emsg)
-                        sys.exit(1)
+                                line_idx))
                     resuid = line[17:27]
                     if prev_res != resuid:
                         prev_res = resuid
@@ -49,9 +46,13 @@ class PDBTools():
         except IOError:
             pass
         pdbfh.close()
-        sys.exit(0)
 
     def extract_chain(self,chain_id, input_file, output_file):
+        """
+        It extracts from a PDB file a chain selected by chain_id and exports a
+        PDB file with only the structure of these chain.
+        Implementation based on: https://github.com/haddocking/pdb-tools
+        """
         def select_chain(fhandle, chain_set):
             """Filters the PDB file for specific chain identifiers.
             """
@@ -71,7 +72,6 @@ class PDBTools():
                 outf.write(line)
         except IOError:
             pass
-
 
 
 class MathTools():
@@ -120,3 +120,58 @@ class RDKitTools():
         element = [atom.GetSymbol() for atom in mol.GetAtoms()
         if atom.GetPDBResidueInfo().GetName().strip() == atom_name][0]
         return element
+
+
+def perform_complex_mutation(complex_pdb, new_residue_pdb,
+                             resname = 'GRW',
+                             output_pdb = 'out/merged_complex.pdb',
+                             HIS_atoms = 10):
+    """
+    Given a PDB with a complex and the PDB of the residue that has to be
+    replaced. It replaces from the original complex the residue and exports
+    the PDB of the new strucutre.
+    """
+
+    f1 = open(complex_pdb,'r')
+    f2 = open(new_residue_pdb, 'r')
+    f3 = open(output_pdb, 'w')
+
+    # Read original complex
+    lines = f1.readlines()
+
+    lines_to_delete, new_lines = ([] for x in range(2))
+
+    # Load new residue atoms
+    for line in f2.readlines():
+        if 'ATOM' in line:
+            new_lines.append(line)
+
+    # Get all residue atoms to delete
+    for line_num, line in enumerate(lines):
+        if resname in line:
+            lines_to_delete.append(line_num)
+
+    lines_to_delete = lines_to_delete[HIS_atoms:]
+
+    # Correct atom numbers of the residue
+    for idx, line in enumerate(new_lines):
+        new_lines[idx] = line[:6] + str(int(line[6:11]) + \
+                                        int(HIS_atoms)).rjust(5) + line[11:]
+
+
+    new_file_lines = \
+        lines[:lines_to_delete[0]] + new_lines + lines[lines_to_delete[-1]+1:]
+
+    for line in new_file_lines:
+        f3.write(line)
+
+def extract_residue(pdb_file, resname , out_file = 'out/RES.pdb'):
+    """
+    It extracts one residue of a PDB file into a separate PDB file.
+    """
+    f = open(pdb_file,'r')
+    f2 = open(out_file, 'w')
+    residue = [ line  for line in f.readlines() if resname in line]
+
+    for line in residue[10:]:
+        f2.write(line)

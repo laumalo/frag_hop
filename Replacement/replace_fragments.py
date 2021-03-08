@@ -1,19 +1,16 @@
 import mdtraj as md
 from rdkit import Chem
 import numpy as np
-from utils import PDBTools, RDKitTools
+from utils import RDKitTools
 
 
 class InputStructure:
     """Object to modify scaffold and fragments structures"""
 
-    def __init__(self, input_file, bond_link=None, top_file=None, chain="L",
-                 resnum=None):
+    def __init__(self, input_file, bond_link=None, top_file=None):
         self.input_file = input_file
         self.top_file = top_file
         self.structure = None
-        self.chain = chain
-        self.resnum = resnum
         self.__load_to_mdtraj()
 
         if bond_link:
@@ -40,16 +37,18 @@ class InputStructure:
 
 class PrepareSystem:
     """Class to replace fragments"""
-    def __init__(self, initial_complex, fragment, ligand_resnum, bond_atoms,
-                 top_complex=None, top_fragment=None, chain_complex = 'A',
-                 chain_fragment = 'L', chain_ligand="L", bond_type='single'):
-        self.initial_complex = InputStructure(initial_complex,
-                                              top_file=top_complex,
-                                              chain=chain_complex,
-                                              resnum=ligand_resnum)
+    def __init__(self, initial_complex, fragment, bond_atoms,
+                 resname = 'GRW', resnum = 145, res_chain = 'A',
+                 top_complex=None, top_fragment=None, bond_type='single'):
 
-        self.fragment = InputStructure(fragment, top_file=top_fragment,
-                                       chain=chain_fragment)
+        self.initial_complex = InputStructure(initial_complex,
+                                              top_file=top_complex)
+        # Residue information
+        self.resname = resname
+        self.resnum = resnum
+        self.res_chain = res_chain
+
+        self.fragment = InputStructure(fragment, top_file=top_fragment)
 
         self.set_complex_link(bond = bond_atoms[1])
         self.set_fragment_link(bond = bond_atoms[0])
@@ -75,9 +74,9 @@ class PrepareSystem:
 
         # set atom reference indices
         h_ref_idx = [atom.index for atom in self.initial_complex.structure.top.atoms
-                     if atom.name == self.initial_complex.bond_link[1] and atom.residue.name == 'LIG'][0]
+                     if atom.name == self.initial_complex.bond_link[1] and atom.residue.name == self.resname][0]
         ha_ref_idx = [atom.index for atom in self.initial_complex.structure.top.atoms
-                      if atom.name == self.initial_complex.bond_link[0] and atom.residue.name == 'LIG'][0]
+                      if atom.name == self.initial_complex.bond_link[0] and atom.residue.name == self.resname][0]
 
         return [h_idx, ha_idx], [h_ref_idx, ha_ref_idx]
 
@@ -183,8 +182,10 @@ class Replacer:
             self.ligand_prepared = frags[0]
             FastFindRings(self.ligand_prepared)
 
-        Chem.rdmolfiles.MolToPDBFile(self.ligand_prepared, 'out/lig_prepared.pdb')
-        Chem.rdmolfiles.MolToPDBFile(self.original_fragment, 'out/original_fragment.pdb')
+        Chem.rdmolfiles.MolToPDBFile(self.ligand_prepared,
+                                     'out/lig_prepared.pdb')
+        Chem.rdmolfiles.MolToPDBFile(self.original_fragment,
+                                     'out/original_fragment.pdb')
 
     def __load_to_rdkit(self, path):
         return Chem.rdmolfiles.MolFromPDBFile(path, removeHs=False)
@@ -224,18 +225,21 @@ class Replacer:
         rdMolTransforms.SetBondLength(self.merged.GetConformer(), lig_idx,
                                       frag_idx, new_distance)
 
-    def __export_merged_structure(self, out_file='out/merged.pdb'):
+    def __export_merged_structure(self, resname = 'GRW', resnum = 145,
+                                  chain_id = 'A', out_file='out/merged.pdb'):
 
         for a in self.merged.GetAtoms():
             mi = Chem.AtomPDBResidueInfo()
             mi.SetName(a.GetPDBResidueInfo().GetName())
-            mi.SetIsHeteroAtom(True)
-            mi.SetResidueName('LIG')
-            mi.SetResidueNumber(1)
-            mi.SetChainId('L')
+            mi.SetIsHeteroAtom(False)
+            mi.SetResidueName(resname)
+            mi.SetResidueNumber(resnum)
+            mi.SetChainId(chain_id)
             a.SetMonomerInfo(mi)
+
         Chem.rdmolfiles.MolToPDBFile(self.merged, out_file)
 
+        from utils import PDBTools
         PDBModifier = PDBTools()
         PDBModifier.pbd_uniqname(out_file)
 
@@ -386,7 +390,7 @@ class Replacer:
         usr2 = rdMolDescriptors.GetUSR(rdkit_molB)
         return s(usr1, usr2)
 
-    def __get_best_dihedral_angle(self, angle_rotation=0.35):
+    def __get_best_dihedral_angle(self, angle_rotation=0.15):
 
         import math
         # Computes the number of rotations that will be performed
