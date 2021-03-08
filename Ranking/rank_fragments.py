@@ -22,6 +22,15 @@ class Ranking:
             Path to the original fragment of the ligand
         library_path : str
             Path to the library containing the replacement fragment candidates.
+
+        Example
+        -------
+
+        Generates a CSV file with the fragment ranked acoording to similarity.
+
+        >>> ranking_tool = Ranking(path/to/fragment.pdb, path/to/library)
+        >>> ranking_tool.rank_fragments(to_file = True)
+
         """
         self.original_fragment = Chem.rdmolfiles.MolFromPDBFile(
             original_fragment_path, removeHs=False)
