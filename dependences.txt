@@ -1,10 +1,10 @@
 Dependences list:
 
 - mdtraj
-- lib_prep
 - rdkit
 - numpy
+- pandas
 
 ###################
-If you work from Mare Nostrum IV I recomend you to use the conda environment from: '/gpfs/projects/bsc72/conda_envs/FragPELE/v2.3.0'. In principle, it includes all dependences. 
+If you work from Mare Nostrum IV I recomend you to use the conda environment from: '/gpfs/projects/bsc72/conda_envs/FragPELE/v2.3.0'. In principle, it includes all dependences.
 ###################
