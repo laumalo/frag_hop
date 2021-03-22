@@ -435,11 +435,12 @@ class Replacer:
                     except KeyError:
                         cut_off = 1.8
                     # Check atoms distances
-                    scaffold_atom = a.GetPDBResidueInfo().GetName()
-                    frag_atom = atom.GetPDBResidueInfo().GetName()
+                    scaffold_atom = a.GetPDBResidueInfo().GetName().strip()
+                    frag_atom = atom.GetPDBResidueInfo().GetName().strip()
                     if distance_atoms < cut_off \
-                            and not frag_atom == self.bond_frag[0] \
-                            and not scaffold_atom == self.bond_lig[1]:
+                            and not frag_atom == self.bond_frag[0].strip() \
+                            and not scaffold_atom == self.bond_lig[1].strip():
+                        print(scaffold_atom, frag_atom, distance_atoms, cut_off)
                         # Discard this position
                         keep_position = False
                         break
