@@ -22,10 +22,10 @@ def parse_args():
     parser = ap.ArgumentParser(description=
                                "FRAGHOP: PERFORM FRAGMENT REPLACEMENT")
     parser.add_argument("complex_pdb", type=str,
-                        help="The path to the complex PDB.")
+                        help="Path to the complex PDB.")
 
     parser.add_argument("fragment_pdb", type=str,
-                        help="The path to the fragment PDB.")
+                        help="Path to the fragment PDB.")
 
     parser.add_argument("-c1", "--connectivity1", type=str,
                         help="Connection from the ligand to the fragment.")
@@ -40,7 +40,54 @@ def parse_args():
 
     return parsed_args
 
+def run_replacement(complex_pdb, fragment_pdb, connectivity1, connectivity2,
+                    output):
+    """
+    Fragment replacement protocol. Given a complex and a fragment, the new
+    fragment is merged with the scaffold by breaking and adding a new bond in
+    the specified connectivy atoms of both scaffold and fragment.
 
+    Parameters
+    ----------
+    complex_pdb : str
+        The path to the complex PDB.
+    fragment_pdb : str
+        The path to the fragment PDB.
+    connectivity1 : str
+        Connection from the ligand to the fragment.
+    connectivity2 : str
+        onnection from the fragment to the ligand.
+    output : str
+        Path to the output folder.
+    """
+
+    OUTPUT_FOLDER = os.path.join(output, 'out_rep')
+    RESNAME = 'GRW'
+    BOND_ATOMS = [connectivity2.split('-'), connectivity1.split('-')]
+
+    os.makedirs(OUTPUT_FOLDER, exist_ok=True)
+
+    extract_residue(input_pdb=complex_pdb,
+                    resname=RESNAME,
+                    output_pdb=os.path.join(OUTPUT_FOLDER, 'RES.pdb'))
+
+    PrepareFragment(initial_complex=complex_pdb,
+                    fragment=fragment_pdb,
+                    bond_atoms=BOND_ATOMS,
+                    out_folder=OUTPUT_FOLDER,
+                    resname=RESNAME)
+
+    Replacer(ligand_pdb=os.path.join(OUTPUT_FOLDER, 'RES.pdb'),
+             fragment_pdb=os.path.join(OUTPUT_FOLDER, 'frag_prepared.pdb'),
+             bond_atoms=BOND_ATOMS,
+             out_folder=OUTPUT_FOLDER)
+
+    perform_residue_substitution(complex_pdb=complex_pdb,
+                                 new_residue_pdb=os.path.join(OUTPUT_FOLDER,
+                                                        'merged.pdb'),
+                                 new_complex_pdb=os.path.join(OUTPUT_FOLDER,
+                                                        'complex_merged.pdb'),
+                                 resname=RESNAME)
 def main(args):
     """
     It reads the command-line arguments and runs the fragment replacement
@@ -54,36 +101,14 @@ def main(args):
     Examples
     --------
     From the command-line:
-    >>> python Replacement/main.py TestingFiles/covalent_ligand/covalent_covid_scaffold.pdb TestingFiles/covalent_ligand/S1p_6367.pdb -c1 C13-N7 -c2 C1-H4
+    >>> python replacement/main.py TestingFiles/covalent_ligand/covalent_covid_scaffold.pdb TestingFiles/covalent_ligand/S1p_6367.pdb -c1 C13-N7 -c2 C1-H4
     """
 
-    OUTPUT_FOLDER = os.path.join(args.output, 'out_rep')
-    RESNAME = 'GRW'
-    BOND_ATOMS = [args.connectivity2.split('-'), args.connectivity1.split('-')]
-
-    os.makedirs(OUTPUT_FOLDER, exist_ok=True)
-
-    extract_residue(input_pdb=args.complex_pdb,
-                    resname=RESNAME,
-                    output_pdb=os.path.join(OUTPUT_FOLDER, 'RES.pdb'))
-
-    PrepareFragment(initial_complex=args.complex_pdb,
-                    fragment=args.fragment_pdb,
-                    bond_atoms=BOND_ATOMS,
-                    out_folder=OUTPUT_FOLDER,
-                    resname=RESNAME)
-
-    Replacer(ligand_pdb=os.path.join(OUTPUT_FOLDER, 'RES.pdb'),
-             fragment_pdb=os.path.join(OUTPUT_FOLDER, 'frag_prepared.pdb'),
-             bond_atoms=BOND_ATOMS,
-             out_folder=OUTPUT_FOLDER)
-
-    perform_residue_substitution(complex_pdb=args.complex_pdb,
-                                 new_residue_pdb=os.path.join(OUTPUT_FOLDER,
-                                                              'merged.pdb'),
-                                 new_complex_pdb=os.path.join(OUTPUT_FOLDER,
-                                                              'complex_merged.pdb'),
-                                 resname=RESNAME)
+    run_replacement(complex_pdb = args.complex_pdb,
+                    fragment_pdb = args.fragment_pdb,
+                    connectivity1 = args.connectivity1,
+                    connectivity2 = args.connectivity2,
+                    output = args.output)
 
 
 if __name__ == '__main__':
