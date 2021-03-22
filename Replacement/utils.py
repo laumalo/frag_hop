@@ -207,6 +207,25 @@ class MathTools():
                         dtype=np.double)
         return rotation_matrix
 
+def distance(x, y):
+    """
+    It computes the distance between two points.
+
+    Parameters
+    ----------
+    x : np.array
+        Point
+    y : np.array
+        Point
+
+    Returns
+    -------
+    dist : float
+        Distance between the two points
+    """
+    import math
+    return math.sqrt((x[0] - y[0]) ** 2 +
+                     (x[1] - y[1]) ** 2 + (x[2] - y[2]) ** 2)
 
 class RDKitTools():
     """
@@ -293,6 +312,7 @@ def perform_residue_substitution(complex_pdb, new_residue_pdb, new_complex_pdb,
         lines[lines_to_delete[-1] + 1:]
     for line in new_file_lines:
         f3.write(line)
+
 
 
 def extract_residue(input_pdb, resname, output_pdb):

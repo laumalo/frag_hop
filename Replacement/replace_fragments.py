@@ -4,7 +4,6 @@ import numpy as np
 import os
 from utils import RDKitTools
 
-
 class InputStructure:
     """
     Object to modify scaffold and fragments structures
@@ -40,6 +39,7 @@ class InputStructure:
 
 class PrepareFragment:
     """Class to prepare the fragment that will be replaced"""
+
     def __init__(self, initial_complex, fragment, bond_atoms, out_folder,
                  resname, top_complex=None, top_fragment=None,
                  bond_type='single'):
@@ -49,10 +49,10 @@ class PrepareFragment:
         self.initial_complex = InputStructure(initial_complex,
                                               top_file=top_complex)
 
-        self.set_complex_link(bond = bond_atoms[1])
+        self.set_complex_link(bond=bond_atoms[1])
 
         self.fragment = InputStructure(fragment, top_file=top_fragment)
-        self.set_fragment_link(bond = bond_atoms[0])
+        self.set_fragment_link(bond=bond_atoms[0])
 
         self.fragment_prepared = None
         self.prepare_fragment()
@@ -76,13 +76,13 @@ class PrepareFragment:
         def get_idx(atoms, atom_name):
             return [atom.index for atom in atoms if atom.name == atom_name][0]
 
-        def get_idx_ref(atoms, atom_name, resname = self.resname):
-            return [atom.index for atom in atoms if atom.name == atom_name \
-                and atom.residue.name == resname][0]
+        def get_idx_ref(atoms, atom_name, resname=self.resname):
+            return [atom.index for atom in atoms if atom.name == atom_name
+                    and atom.residue.name == resname][0]
 
         # set atom indices
         h_idx = get_idx(atoms=self.fragment.structure.top.atoms,
-                        atom_name=self.fragment.bond_link[1] )
+                        atom_name=self.fragment.bond_link[1])
         ha_idx = get_idx(atoms=self.fragment.structure.top.atoms,
                          atom_name=self.fragment.bond_link[0])
 
@@ -91,8 +91,7 @@ class PrepareFragment:
                                 atom_name=self.initial_complex.bond_link[1])
 
         ha_ref_idx = get_idx_ref(atoms=self.initial_complex.structure.top.atoms,
-                                atom_name=self.initial_complex.bond_link[0])
-
+                                 atom_name=self.initial_complex.bond_link[0])
 
         return [h_idx, ha_idx], [h_ref_idx, ha_ref_idx]
 
@@ -159,8 +158,10 @@ class PrepareFragment:
         output_path = os.path.join(self.out, 'frag_prepared.pdb')
         self.fragment.structure.save_pdb(output_path)
 
+
 class Replacer:
     """Class to replace fragments"""
+
     def __init__(self, ligand_pdb, fragment_pdb, bond_atoms, out_folder,
                  bond_type='single'):
 
@@ -177,6 +178,7 @@ class Replacer:
         self.break_ligand()
 
         # Fragment
+        self.fragment_pdb = fragment_pdb
         self.fragment = self.__load_to_rdkit(fragment_pdb)
         self.rotated_fragment = None
         self.get_best_dihedral_angle()
@@ -202,13 +204,13 @@ class Replacer:
         idx2 = rdkit_tools.get_atomid_by_atomname(self.ligand,
                                                   self.bond_lig[0])
 
-        Chem.Kekulize(lig,clearAromaticFlags=True)
+        Chem.Kekulize(lig, clearAromaticFlags=True)
         em = Chem.EditableMol(lig)
-        em.RemoveBond(idx1,idx2)
+        em.RemoveBond(idx1, idx2)
         nm = em.GetMol()
         nm.GetAtomWithIdx(idx1).SetNoImplicit(True)
         nm.GetAtomWithIdx(idx2).SetNoImplicit(True)
-        frags = Chem.GetMolFrags(nm,asMols=True, sanitizeFrags = False)
+        frags = Chem.GetMolFrags(nm, asMols=True, sanitizeFrags=False)
         if frags[0].GetNumAtoms() < frags[1].GetNumAtoms():
             self.original_fragment = frags[0]
             self.ligand_prepared = frags[1]
@@ -242,7 +244,7 @@ class Replacer:
         """
         It merges two rdkit.Chem.rdchem.Mol objects into a single one.
         """
-        self.merged =  Chem.CombineMols(self.ligand_prepared, self.fragment)
+        self.merged = Chem.CombineMols(self.ligand_prepared, self.fragment)
 
     def __correct_bond_distance(self):
         """
@@ -260,8 +262,8 @@ class Replacer:
         lig_idx = rdkit_tools.get_atomid_by_atomname(self.ligand_prepared,
                                                      self.bond_lig[1])
         frag_idx = rdkit_tools.get_atomid_by_atomname(self.fragment,
-                                                     self.bond_frag[0]) \
-                + len(self.ligand_prepared.GetAtoms())
+                                                      self.bond_frag[0]) \
+            + len(self.ligand_prepared.GetAtoms())
 
         lig_element = rdkit_tools.get_element_by_atomname(self.ligand_prepared,
                                                           self.bond_lig[1])
@@ -289,8 +291,8 @@ class Replacer:
         rdMolTransforms.SetBondLength(self.merged.GetConformer(), lig_idx,
                                       frag_idx, new_distance)
 
-    def __export_merged_structure(self, resname = 'GRW', resnum = 145,
-                                  chain_id = 'A'):
+    def __export_merged_structure(self, resname='GRW', resnum=145,
+                                  chain_id='A'):
         """
         Exports the PDB files for the merged structure in the necessary formats
         for later complex modification of a residue and for templetizate the
@@ -324,7 +326,6 @@ class Replacer:
             PDBModifier = PDBTools()
             PDBModifier.rename_atoms_fragment(path)
 
-
     def get_merged_structure(self):
         """
         It generates a merged structure by creating a bond between the prepared
@@ -333,8 +334,6 @@ class Replacer:
         self.__generate_merged_structure()
         self.__correct_bond_distance()
         self.__export_merged_structure()
-
-
 
     def get_best_dihedral_angle(self, rotation_angle=0.15):
         """
@@ -365,10 +364,13 @@ class Replacer:
                 fragment position and the rotated fragment.
                 """
                 ix = rdkit_tools.get_atomid_by_atomname(self.fragment,
-                                                         self.bond_frag[0])
-                p_ref = self.rotated_fragment.GetConformer().GetAtomPosition(ix)
+                                                        self.bond_frag[0])
+                p_ref = self.fragment.GetConformer().GetAtomPosition(ix)
                 p_ref_rot = np.dot(rot_mat, [p_ref.x, p_ref.y, p_ref.z])
                 return p_ref - p_ref_rot
+
+            # Resets the rotated fragment
+            self.rotated_fragment = self.__load_to_rdkit(self.fragment_pdb)
 
             # Computes vector to be used as axis of rotation
             idx1 = rdkit_tools.get_atomid_by_atomname(self.ligand,
@@ -394,11 +396,54 @@ class Replacer:
             # Perform a rotation and translation
             for atom in self.rotated_fragment.GetAtoms():
                 p = self.rotated_fragment.GetConformer().GetAtomPosition(
-                                                            atom.GetIdx())
+                    atom.GetIdx())
                 new_p = np.dot(rot_mat, [p.x, p.y, p.z]) + translation
                 self.rotated_fragment.GetConformer().SetAtomPosition(
-                                                            atom.GetIdx(),new_p)
+                    atom.GetIdx(), new_p)
 
+        def check_atoms_distances():
+            """
+            Checks that the position of the fragment in the merged structure
+            will not have any of the atoms of the fragment within bond distance
+            to the scaffold atoms, leading to the formation of unwanted bonds in
+            the new molecule of overlapings between fragment-scaffold.
+
+            Returns
+            -------
+            keep_position : bool
+                True if the position could be keeped for the merged structure.
+            """
+
+            from atom_constants import BONDING_DISTANCES
+            from utils import distance
+
+            keep_position = True
+            for atom in self.rotated_fragment.GetAtoms():
+                p1 = self.rotated_fragment.GetConformer().GetAtomPosition(
+                    atom.GetIdx())
+                for a in self.ligand_prepared.GetAtoms():
+                    p2 = self.ligand_prepared.GetConformer().GetAtomPosition(
+                        a.GetIdx())
+                    #Distance between the atoms
+                    distance_atoms = distance(np.array([p1.x, p1.y, p1.z]),
+                                              np.array([p2.x, p2.y, p2.z]))
+                    # Search for the specific bond distance of the pair of atoms
+                    try:
+                        cut_off = BONDING_DISTANCES[atom.GetSymbol().upper(),
+                                        a.GetSymbol().upper(), 'single']
+                    # Default value if not found
+                    except KeyError:
+                        cut_off = 1.8
+                    # Check atoms distances
+                    scaffold_atom = a.GetPDBResidueInfo().GetName()
+                    frag_atom = atom.GetPDBResidueInfo().GetName()
+                    if distance_atoms < cut_off \
+                            and not frag_atom == self.bond_frag[0] \
+                            and not scaffold_atom == self.bond_lig[1]:
+                        # Discard this position
+                        keep_position = False
+                        break
+            return keep_position
 
         def compute_fragment_usr(rdkit_molA, rdkit_molB):
             """
@@ -455,17 +500,25 @@ class Replacer:
         # Computes the number of rotations that will be performed
         num_rotations = int(2 * math.pi / rotation_angle)
 
-        # Rotates the fragment and computs USR metrics
+        # Rotates the fragment and computes USR metrics
         d = {}
-        self.rotated_fragment = self.fragment
         for rot in range(num_rotations):
             rotate_fragment(radi=rotation_angle * rot)
-            usr_value = compute_fragment_usr(
-                self.original_fragment,
-                self.rotated_fragment)
-            d[rot] = usr_value
+            # Checks overlaping fragment-scaffold
+            if check_atoms_distances():
+                usr_value = compute_fragment_usr(
+                    self.original_fragment,
+                    self.rotated_fragment)
+                d[rot] = usr_value
 
         # Choose the best position for the fragment
-        best_rot = min(d, key=d.get)
-        rotate_fragment(radi=best_rot)
-        self.fragment = self.rotated_fragment
+        try:
+            best_rot = min(d, key=d.get)
+            rotate_fragment(radi=rotation_angle * best_rot)
+            self.fragment = self.rotated_fragment
+        except ValueError:
+            print('Warning: Skipping fragment, there is no possible position ' +
+                  'without overlapping. Default initial position returned. ')
+
+
+
