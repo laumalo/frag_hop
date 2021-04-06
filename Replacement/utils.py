@@ -2,6 +2,7 @@ import collections
 import sys
 import os
 import numpy as np
+import time
 
 
 class PDBTools():
@@ -334,3 +335,39 @@ def extract_residue(input_pdb, resname, output_pdb):
 
     for line in residue:
         f2.write(line)
+
+def run_preprocess(SCH_PATH, folder, pdb_in, pdb_out):
+    """
+    It preprocess a PDB file using Schrodinger Protein Preparation Wizzard.
+
+    Parameters
+    ----------
+    SCH_PATH : str
+        Schrodinger’s installation path.
+    folder : str
+        Path to the folder containing the PDB file.
+    pdb_in : str
+        Relative path to the input PDB.
+    pdb_out :str
+        Relative path to the output PDB.
+    """
+
+    curr_dir = os.getcwd()
+    command = '{}/utilities/prepwizard {} {} -noepik -noccd -noimpref'.format(
+                                                    SCH_PATH, pdb_in, pdb_out)
+    # Run command to preprocess the PDB
+    os.chdir(folder)
+    os.system(command)
+
+    # Wait until the output file is created
+    condition = os.path.isfile(pdb_out)
+    while not condition:
+        condition = os.path.isfile(pdb_out)
+        time.sleep(0.1)
+
+    # Remove log file
+    os.remove(pdb_in.replace('.pdb', '.log'))
+    os.chdir(curr_dir)
+
+
+

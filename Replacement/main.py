@@ -4,7 +4,7 @@ import argparse as ap
 
 # Local imports
 from replace_fragments import PrepareFragment, Replacer
-from utils import perform_residue_substitution, extract_residue
+from utils import perform_residue_substitution, extract_residue, run_preprocess
 
 
 def parse_args():
@@ -41,7 +41,7 @@ def parse_args():
     return parsed_args
 
 def run_replacement(complex_pdb, fragment_pdb, connectivity1, connectivity2,
-                    output):
+                    output, SCH_PATH='/opt/schrodinger/suites2020-4'):
     """
     Fragment replacement protocol. Given a complex and a fragment, the new
     fragment is merged with the scaffold by breaking and adding a new bond in
@@ -59,6 +59,8 @@ def run_replacement(complex_pdb, fragment_pdb, connectivity1, connectivity2,
         onnection from the fragment to the ligand.
     output : str
         Path to the output folder.
+    SCH_PATH : str
+        Schrodinger’s installation path.
     """
 
     OUTPUT_FOLDER = os.path.join(output, 'out_rep')
@@ -71,14 +73,20 @@ def run_replacement(complex_pdb, fragment_pdb, connectivity1, connectivity2,
                     resname=RESNAME,
                     output_pdb=os.path.join(OUTPUT_FOLDER, 'RES.pdb'))
 
+    run_preprocess(SCH_PATH=SCH_PATH,
+                   folder=OUTPUT_FOLDER,
+                   pdb_in='RES.pdb',
+                   pdb_out='RES_p.pdb')
+
     PrepareFragment(initial_complex=complex_pdb,
                     fragment=fragment_pdb,
                     bond_atoms=BOND_ATOMS,
                     out_folder=OUTPUT_FOLDER,
                     resname=RESNAME)
 
-    Replacer(ligand_pdb=os.path.join(OUTPUT_FOLDER, 'RES.pdb'),
+    Replacer(ligand_pdb=os.path.join(OUTPUT_FOLDER, 'RES_p.pdb'),
              fragment_pdb=os.path.join(OUTPUT_FOLDER, 'frag_prepared.pdb'),
+             ref_fragment_pdb=fragment_pdb,
              bond_atoms=BOND_ATOMS,
              out_folder=OUTPUT_FOLDER)
 

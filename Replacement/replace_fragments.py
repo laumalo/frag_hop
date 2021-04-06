@@ -130,18 +130,6 @@ class PrepareFragment:
         for i, xyz in enumerate(trajB.xyz[0]):
             trajB.xyz[0][i] = xyz + translation_distance
 
-    def remove_hydrogen(self):
-        """
-        Removes the hydrogen atom in the fragment that will be the bond with
-        the scaffold.
-        """
-        atom_indices = [
-            atom.index for atom in self.fragment.structure.top.atoms]
-        h_idx = [atom.index for atom in self.fragment.structure.top.atoms
-                 if atom.name == self.fragment.bond_link[1]]
-        new_indices = list(set(atom_indices) - set(h_idx))
-        self.fragment.structure = self.fragment.structure.atom_slice(
-            new_indices)
 
     def prepare_fragment(self):
         """
@@ -152,7 +140,6 @@ class PrepareFragment:
         """
         # Prepare fragment
         self.superimpose_fragment_bond()
-        self.remove_hydrogen()
 
         # Export PDB structure
         output_path = os.path.join(self.out, 'frag_prepared.pdb')
@@ -162,8 +149,8 @@ class PrepareFragment:
 class Replacer:
     """Class to replace fragments"""
 
-    def __init__(self, ligand_pdb, fragment_pdb, bond_atoms, out_folder,
-                 bond_type='single'):
+    def __init__(self, ligand_pdb, fragment_pdb, ref_fragment_pdb, bond_atoms,
+                 out_folder, bond_type='single'):
 
         self.out = out_folder
 
@@ -179,7 +166,10 @@ class Replacer:
 
         # Fragment
         self.fragment_pdb = fragment_pdb
+        self.ref_fragment_pdb = ref_fragment_pdb
         self.fragment = self.__load_to_rdkit(fragment_pdb)
+        self.correct_fragment()
+
         self.rotated_fragment = None
         self.get_best_dihedral_angle()
 
@@ -187,6 +177,21 @@ class Replacer:
         self.merged = None
         self.get_merged_structure()
 
+    def __load_to_rdkit(self, path):
+        """
+        It laods a PDB file into an rdkit.Chem.rdchem.Mol object.
+
+        Parameters
+        ----------
+        path : str
+            Path to the PDB file.
+
+        Returns
+        -------
+        mol : rdkit.Chem.rdchem.Mol object
+            Molecule.
+        """
+        return Chem.rdmolfiles.MolFromPDBFile(path, removeHs=False)
 
     def break_ligand(self):
         """
@@ -229,16 +234,27 @@ class Replacer:
         Chem.rdmolfiles.MolToPDBFile(self.original_fragment,
                                      fragment_output)
 
-    def __load_to_rdkit(self, path):
+    def correct_fragment(self):
         """
-        It laods a PDB file into an rdkit.Chem.rdchem.Mol object.
+        It assigns the bond orders of the prepared fragment from the reference
+        fragment (from the library) and removes the hydrogen where the bond will
+        take place.
+        """
 
-        Parameters
-        ----------
-        path : str
-            Path to the PDB file.
-        """
-        return Chem.rdmolfiles.MolFromPDBFile(path, removeHs=False)
+        from rdkit import Chem
+        from rdkit.Chem import AllChem
+
+        # Assign bond orders
+        ref = self.__load_to_rdkit(self.ref_fragment_pdb)
+        frag_bonds = AllChem.AssignBondOrdersFromTemplate(ref, self.fragment)
+
+        # Remove hydrogen
+        rdkit_tools = RDKitTools()
+        frag_idx = rdkit_tools.get_atomid_by_atomname(self.fragment,
+                                                      self.bond_frag[1])
+        ed_frag = Chem.EditableMol(frag_bonds)
+        ed_frag.RemoveAtom(frag_idx)
+        Chem.rdmolfiles.MolToPDBFile(ed_frag.GetMol(), self.fragment_pdb)
 
     def __generate_merged_structure(self):
         """
@@ -440,7 +456,6 @@ class Replacer:
                     if distance_atoms < cut_off \
                             and not frag_atom == self.bond_frag[0].strip() \
                             and not scaffold_atom == self.bond_lig[1].strip():
-                        print(scaffold_atom, frag_atom, distance_atoms, cut_off)
                         # Discard this position
                         keep_position = False
                         break
