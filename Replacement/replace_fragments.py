@@ -144,6 +144,7 @@ class PrepareFragment:
         # Export PDB structure
         output_path = os.path.join(self.out, 'frag_prepared.pdb')
         self.fragment.structure.save_pdb(output_path)
+        self.fragment.structure.save_pdb('test.pdb')
 
 
 class Replacer:
@@ -243,6 +244,8 @@ class Replacer:
 
         from rdkit import Chem
         from rdkit.Chem import AllChem
+        from rdkit.Chem.rdmolops import FastFindRings
+
 
         # Assign bond orders
         ref = self.__load_to_rdkit(self.ref_fragment_pdb)
@@ -254,7 +257,12 @@ class Replacer:
                                                       self.bond_frag[1])
         ed_frag = Chem.EditableMol(frag_bonds)
         ed_frag.RemoveAtom(frag_idx)
-        Chem.rdmolfiles.MolToPDBFile(ed_frag.GetMol(), self.fragment_pdb)
+
+        mol = ed_frag.GetMol()
+        FastFindRings(mol)
+        mol.UpdatePropertyCache(strict=False)
+        Chem.rdmolfiles.MolToPDBFile(mol, self.fragment_pdb)
+
 
     def __generate_merged_structure(self):
         """
@@ -323,10 +331,24 @@ class Replacer:
         chain_id : str
             Chain Id.
         """
+        from rdkit.Chem.rdmolops import FastFindRings
+
         out_file = os.path.join(self.out, 'merged.pdb')
         out_ligand = os.path.join(self.out, resname + '.pdb')
 
-        for heteroatom, path in zip((False, True), (out_file, out_ligand)):
+        rdkit_tools = RDKitTools()
+
+        for heteroatom, path in zip((True, False), (out_ligand,out_file)):
+            if heteroatom is False:
+                em = Chem.EditableMol(self.merged)
+                hn_idx = rdkit_tools.get_atomid_by_atomname(self.merged, 'HN')
+
+                em.RemoveAtom(hn_idx)
+                self.merged = em.GetMol()
+                em = Chem.EditableMol(self.merged)
+                hxt_idx = rdkit_tools.get_atomid_by_atomname(self.merged, 'HXT')
+                em.RemoveAtom(hxt_idx)
+                self.merged = em.GetMol()
             for a in self.merged.GetAtoms():
                 mi = Chem.AtomPDBResidueInfo()
                 mi.SetName(a.GetPDBResidueInfo().GetName())
@@ -336,6 +358,8 @@ class Replacer:
                 mi.SetChainId(chain_id)
                 a.SetMonomerInfo(mi)
 
+            FastFindRings(self.merged)
+            self.merged.UpdatePropertyCache(strict=False)
             Chem.rdmolfiles.MolToPDBFile(self.merged, path)
 
             from utils import PDBTools

@@ -36,16 +36,26 @@ def parse_args():
     parser.add_argument("-o", "--output", type=str, default='out',
                         help="Path to the output folder. Default: out.")
 
+    parser.add_argument("--covalent",
+                        dest="covalent",
+                        action='store_true',
+                        help="Perform the fragment replacement in a covalent" +
+                        " complex.")
+
+    parser.set_defaults(covalent=False)
+
     parsed_args = parser.parse_args()
 
     return parsed_args
 
-def run_replacement(complex_pdb, fragment_pdb, connectivity1, connectivity2,
-                    output, SCH_PATH='/opt/schrodinger/suites2020-4'):
+def run_covalent_replacement(complex_pdb, fragment_pdb, resname,connectivity1,
+                             connectivity2, output,
+                             SCH_PATH='/opt/schrodinger/suites2020-4'):
     """
-    Fragment replacement protocol. Given a complex and a fragment, the new
-    fragment is merged with the scaffold by breaking and adding a new bond in
-    the specified connectivy atoms of both scaffold and fragment.
+    Fragment replacement protocol for covalently bound ligands. Given a complex
+    and a fragment, the new fragment is merged with the scaffold by breaking and
+    adding a new bond in the specified connectivy atoms of both scaffold and
+    fragment.
 
     Parameters
     ----------
@@ -64,13 +74,12 @@ def run_replacement(complex_pdb, fragment_pdb, connectivity1, connectivity2,
     """
 
     OUTPUT_FOLDER = os.path.join(output, 'out_rep')
-    RESNAME = 'GRW'
     BOND_ATOMS = [connectivity2.split('-'), connectivity1.split('-')]
 
     os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 
     extract_residue(input_pdb=complex_pdb,
-                    resname=RESNAME,
+                    resname=resname,
                     output_pdb=os.path.join(OUTPUT_FOLDER, 'RES.pdb'))
 
     run_preprocess(SCH_PATH=SCH_PATH,
@@ -82,7 +91,7 @@ def run_replacement(complex_pdb, fragment_pdb, connectivity1, connectivity2,
                     fragment=fragment_pdb,
                     bond_atoms=BOND_ATOMS,
                     out_folder=OUTPUT_FOLDER,
-                    resname=RESNAME)
+                    resname=resname)
 
     Replacer(ligand_pdb=os.path.join(OUTPUT_FOLDER, 'RES_p.pdb'),
              fragment_pdb=os.path.join(OUTPUT_FOLDER, 'frag_prepared.pdb'),
@@ -95,7 +104,7 @@ def run_replacement(complex_pdb, fragment_pdb, connectivity1, connectivity2,
                                                         'merged.pdb'),
                                  new_complex_pdb=os.path.join(OUTPUT_FOLDER,
                                                         'complex_merged.pdb'),
-                                 resname=RESNAME)
+                                 resname=resname)
 def main(args):
     """
     It reads the command-line arguments and runs the fragment replacement
@@ -111,13 +120,16 @@ def main(args):
     From the command-line:
     >>> python replacement/main.py TestingFiles/covalent_ligand/covalent_covid_scaffold.pdb TestingFiles/covalent_ligand/S1p_6367.pdb -c1 C13-N7 -c2 C1-H4
     """
-
-    run_replacement(complex_pdb = args.complex_pdb,
-                    fragment_pdb = args.fragment_pdb,
-                    connectivity1 = args.connectivity1,
-                    connectivity2 = args.connectivity2,
-                    output = args.output)
-
+    RESNAME = 'GRW'
+    if args.covalent:
+        run_covalent_replacement(complex_pdb = args.complex_pdb,
+                                 fragment_pdb = args.fragment_pdb,
+                                 resname = RESNAME,
+                                 connectivity1 = args.connectivity1,
+                                 connectivity2 = args.connectivity2,
+                                 output = args.output)
+    else:
+        print('Non covalent version not fully implemented yet.')
 
 if __name__ == '__main__':
     args = parse_args()
