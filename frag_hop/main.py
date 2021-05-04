@@ -54,7 +54,7 @@ def parse_args():
 
     return parsed_args
 
-def run_covalent_replacement(complex_pdb, fragment_pdb, resname, resnum,
+def run_covalent_replacement(complex_pdb, fragment_pdb, resname,
                              connectivity1, connectivity2, output,
                              SCH_PATH='/opt/schrodinger/suites2020-4'):
     """
