@@ -1,157 +1,45 @@
-import mdtraj as md
+"""
+This module containts classes that handle the fragment replacement in a complex.
+"""
+
+#General imports
 from rdkit import Chem
 import numpy as np
 import os
-from utils import RDKitTools
 
-class InputStructure:
-    """
-    Object to modify scaffold and fragments structures
-    """
-
-    def __init__(self, input_file, bond_link=None, top_file=None):
-        self.input_file = input_file
-        self.top_file = top_file
-        self.structure = None
-        self.__load_to_mdtraj()
-
-        if bond_link:
-            self.set_bond_to_link(bond_link)
-        else:
-            self.bond_link = bond_link
-
-    def __load_to_mdtraj(self):
-        if self.top_file:
-            self.structure = md.load(self.input_file, top_file=self.top_file)
-        else:
-            self.structure = md.load(self.input_file)
-
-    def set_bond_to_link(self, new_bond):
-        if type(new_bond) is list:
-            if len(new_bond) == 2:
-                self.bond_link = new_bond
-            else:
-                raise ValueError(
-                    "Wrong length for {new_bond}. It must be a list of 2 elements")
-        else:
-            raise TypeError("Wrong type for {new_bond}. It must be a 'list'")
-
-
-class PrepareFragment:
-    """Class to prepare the fragment that will be replaced"""
-
-    def __init__(self, initial_complex, fragment, bond_atoms, out_folder,
-                 resname, top_complex=None, top_fragment=None,
-                 bond_type='single'):
-
-        self.out = out_folder
-        self.resname = resname
-        self.initial_complex = InputStructure(initial_complex,
-                                              top_file=top_complex)
-
-        self.set_complex_link(bond=bond_atoms[1])
-
-        self.fragment = InputStructure(fragment, top_file=top_fragment)
-        self.set_fragment_link(bond=bond_atoms[0])
-
-        self.fragment_prepared = None
-        self.prepare_fragment()
-
-    def set_complex_link(self, bond):
-        self.initial_complex.set_bond_to_link(bond)
-
-    def set_fragment_link(self, bond):
-        self.fragment.set_bond_to_link(bond)
-
-    def __get_atom_indices(self):
-        """
-        Gets the atoms indixes of the atoms in the ligand and fragment that will
-        be needed for the new connectivity.
-
-        Returns
-        -------
-        atom_indices : tuple
-            Tuple of the pairs of atom indices.
-        """
-        def get_idx(atoms, atom_name):
-            return [atom.index for atom in atoms if atom.name == atom_name][0]
-
-        def get_idx_ref(atoms, atom_name, resname=self.resname):
-            return [atom.index for atom in atoms if atom.name == atom_name
-                    and atom.residue.name == resname][0]
-
-        # set atom indices
-        h_idx = get_idx(atoms=self.fragment.structure.top.atoms,
-                        atom_name=self.fragment.bond_link[1])
-        ha_idx = get_idx(atoms=self.fragment.structure.top.atoms,
-                         atom_name=self.fragment.bond_link[0])
-
-        # set atom reference indices
-        h_ref_idx = get_idx_ref(atoms=self.initial_complex.structure.top.atoms,
-                                atom_name=self.initial_complex.bond_link[1])
-
-        ha_ref_idx = get_idx_ref(atoms=self.initial_complex.structure.top.atoms,
-                                 atom_name=self.initial_complex.bond_link[0])
-
-        return [h_idx, ha_idx], [h_ref_idx, ha_ref_idx]
-
-    def superimpose_fragment_bond(self):
-        """
-        Given the attachment vector of the fragment and the attachment vector of
-        the scaffold given by the pair of atoms in that bond, it performs the
-        rotation and translation needed to the fragment to align the fragment
-        attachment vector to the scaffold attachment vector.
-        """
-        from utils import MathTools
-
-        trajA = self.initial_complex.structure
-        trajB = self.fragment.structure
-
-        # Get atoms of the bond indices
-        atom_indices, atom_ref_indices = self.__get_atom_indices()
-
-        # Compute reference vectors
-        vec_ref = trajA.xyz[0, atom_ref_indices[0], :] - \
-            trajA.xyz[0, atom_ref_indices[1], :]
-        vec_ref = vec_ref / (vec_ref**2).sum()**0.5
-        vec = trajB.xyz[0, atom_indices[0], :] - \
-            trajB.xyz[0, atom_indices[1], :]
-        vec = vec / (vec**2).sum()**0.5
-
-        # Apply rotation
-        MTools = MathTools()
-        rot = MTools.rotation_matrix_from_vectors(vec, vec_ref)
-        for i, xyz in enumerate(trajB.xyz[0]):
-            trajB.xyz[0][i] = np.dot(rot, xyz)
-
-        # Apply translation between the heavy atoms
-        translation_distance = trajA.xyz[0, atom_ref_indices[1], :] - \
-            trajB.xyz[0, atom_indices[1], :]
-        for i, xyz in enumerate(trajB.xyz[0]):
-            trajB.xyz[0][i] = xyz + translation_distance
-
-
-    def prepare_fragment(self):
-        """
-        It prepares the input fragment for later fragment replacement techniques
-        to generate new molecules.
-
-        It also generates a PDB file with the prepared fragment structure.
-        """
-        # Prepare fragment
-        self.superimpose_fragment_bond()
-
-        # Export PDB structure
-        output_path = os.path.join(self.out, 'frag_prepared.pdb')
-        self.fragment.structure.save_pdb(output_path)
-        self.fragment.structure.save_pdb('test.pdb')
-
+#Local imports
+from frag_hop.utils.geometry import rotation_matrix_axis
+from frag_hop.utils.tools import RDKitTools
 
 class Replacer:
     """Class to replace fragments"""
 
-    def __init__(self, ligand_pdb, fragment_pdb, ref_fragment_pdb, bond_atoms,
-                 out_folder, bond_type='single'):
+    def __init__(self, ligand_pdb, fragment_pdb, ref_fragment_pdb,
+                 bond_atoms, resname, resnum,
+                 out_folder='out', bond_type='single'):
+        """
+        It initialices a Replacer object.
+
+        Parameters
+        ----------
+        ligand_pdb : str
+            Path to the ligand involved in the fragment replacement.
+        fragment_pdb : str
+            Path to the prepared fragment to be repalced for.
+        ref_fragment_pdb : str
+            Path to the fragment in the library.
+        bond_atoms : list[list[str]]
+            List of atoms that represent the attachment vectors of the fragment
+            and scaffold.
+        resname : str
+            Residue name of the ligand.
+        resnum : str
+            Residu sequence number of the ligand
+        out_folder : str
+            Path to the output folder. Default: out
+        bond_type : str
+            Type of bond of the connection scaffold-fragment. Dafault: single
+        """
 
         self.out = out_folder
 
@@ -160,14 +48,16 @@ class Replacer:
         self.bond_type = bond_type
 
         # Ligand
+        self.resname = resname
+        self.resnum = resnum
         self.ligand = self.__load_to_rdkit(ligand_pdb)
         self.ligand_prepared = None
         self.original_fragment = None
         self.break_ligand()
 
         # Fragment
-        self.fragment_pdb = fragment_pdb
-        self.ref_fragment_pdb = ref_fragment_pdb
+        self.fragment_path = fragment_pdb
+        self.ref_fragment_path = ref_fragment_pdb
         self.fragment = self.__load_to_rdkit(fragment_pdb)
         self.correct_fragment()
 
@@ -180,7 +70,7 @@ class Replacer:
 
     def __load_to_rdkit(self, path):
         """
-        It laods a PDB file into an rdkit.Chem.rdchem.Mol object.
+        It loads a PDB file into an rdkit.Chem.rdchem.Mol object.
 
         Parameters
         ----------
@@ -203,19 +93,21 @@ class Replacer:
         These two structures are also exported as PDB files.
         """
         from rdkit.Chem.rdmolops import FastFindRings
+
         rdkit_tools = RDKitTools()
-        lig = self.ligand
+
         idx1 = rdkit_tools.get_atomid_by_atomname(self.ligand,
                                                   self.bond_lig[1])
         idx2 = rdkit_tools.get_atomid_by_atomname(self.ligand,
                                                   self.bond_lig[0])
-
+        lig = self.ligand
         Chem.Kekulize(lig, clearAromaticFlags=True)
         em = Chem.EditableMol(lig)
         em.RemoveBond(idx1, idx2)
         nm = em.GetMol()
         nm.GetAtomWithIdx(idx1).SetNoImplicit(True)
         nm.GetAtomWithIdx(idx2).SetNoImplicit(True)
+
         frags = Chem.GetMolFrags(nm, asMols=True, sanitizeFrags=False)
         if frags[0].GetNumAtoms() < frags[1].GetNumAtoms():
             self.original_fragment = frags[0]
@@ -227,13 +119,10 @@ class Replacer:
             FastFindRings(self.ligand_prepared)
 
         # Export PDB structures
-        ligand_output = os.path.join(self.out, 'lig_prepared.pdb')
-        fragment_output = os.path.join(self.out, 'original_fragment.pdb')
-
         Chem.rdmolfiles.MolToPDBFile(self.ligand_prepared,
-                                     ligand_output)
+                                     os.path.join(self.out,'lig_prepared.pdb'))
         Chem.rdmolfiles.MolToPDBFile(self.original_fragment,
-                                     fragment_output)
+                                     os.path.join(self.out,'original_frag.pdb'))
 
     def correct_fragment(self):
         """
@@ -242,13 +131,13 @@ class Replacer:
         take place.
         """
 
-        from rdkit import Chem
         from rdkit.Chem import AllChem
         from rdkit.Chem.rdmolops import FastFindRings
 
-
         # Assign bond orders
-        ref = self.__load_to_rdkit(self.ref_fragment_pdb)
+        ref = self.__load_to_rdkit(self.ref_fragment_path)
+        Chem.rdmolfiles.MolToPDBFile(ref,'ref.pdb')
+        Chem.rdmolfiles.MolToPDBFile(self.fragment,'frag.pdb')
         frag_bonds = AllChem.AssignBondOrdersFromTemplate(ref, self.fragment)
 
         # Remove hydrogen
@@ -258,10 +147,11 @@ class Replacer:
         ed_frag = Chem.EditableMol(frag_bonds)
         ed_frag.RemoveAtom(frag_idx)
 
+        # Save fragment
         mol = ed_frag.GetMol()
         FastFindRings(mol)
         mol.UpdatePropertyCache(strict=False)
-        Chem.rdmolfiles.MolToPDBFile(mol, self.fragment_pdb)
+        Chem.rdmolfiles.MolToPDBFile(mol, self.fragment_path)
 
 
     def __generate_merged_structure(self):
@@ -278,7 +168,7 @@ class Replacer:
         """
         from rdkit.Chem import rdMolTransforms
         from rdkit.Chem.rdmolops import FastFindRings
-        from atom_constants import BONDING_DISTANCES
+        from frag_hop.data.parameters.atom_constants import BONDING_DISTANCES
 
         rdkit_tools = RDKitTools()
 
@@ -340,15 +230,17 @@ class Replacer:
 
         for heteroatom, path in zip((True, False), (out_ligand,out_file)):
             if heteroatom is False:
-                em = Chem.EditableMol(self.merged)
-                hn_idx = rdkit_tools.get_atomid_by_atomname(self.merged, 'HN')
-
-                em.RemoveAtom(hn_idx)
-                self.merged = em.GetMol()
-                em = Chem.EditableMol(self.merged)
-                hxt_idx = rdkit_tools.get_atomid_by_atomname(self.merged, 'HXT')
-                em.RemoveAtom(hxt_idx)
-                self.merged = em.GetMol()
+                try:
+                    em = Chem.EditableMol(self.merged)
+                    hn_idx = rdkit_tools.get_atomid_by_atomname(self.merged, 'HN')
+                    em.RemoveAtom(hn_idx)
+                    self.merged = em.GetMol()
+                    em = Chem.EditableMol(self.merged)
+                    hxt_idx = rdkit_tools.get_atomid_by_atomname(self.merged, 'HXT')
+                    em.RemoveAtom(hxt_idx)
+                    self.merged = em.GetMol()
+                except Exception:
+                    pass
             for a in self.merged.GetAtoms():
                 mi = Chem.AtomPDBResidueInfo()
                 mi.SetName(a.GetPDBResidueInfo().GetName())
@@ -373,7 +265,8 @@ class Replacer:
         """
         self.__generate_merged_structure()
         self.__correct_bond_distance()
-        self.__export_merged_structure()
+        self.__export_merged_structure(resname = self.resname,
+                                       resnum=self.resnum)
 
     def get_best_dihedral_angle(self, rotation_angle=0.15):
         """
@@ -384,7 +277,7 @@ class Replacer:
         Parameters
         ----------
         rotation_angle : float
-            Angle (in radians) to rotate at each iteration.
+            Angle (in radians) to rotate at each iteration. Dafault: 0.15 rad
         """
         import math
 
@@ -410,7 +303,7 @@ class Replacer:
                 return p_ref - p_ref_rot
 
             # Resets the rotated fragment
-            self.rotated_fragment = self.__load_to_rdkit(self.fragment_pdb)
+            self.rotated_fragment = self.__load_to_rdkit(self.fragment_path)
 
             # Computes vector to be used as axis of rotation
             idx1 = rdkit_tools.get_atomid_by_atomname(self.ligand,
@@ -424,11 +317,8 @@ class Replacer:
             u = np.array([p1.x, p1.y, p1.z]) - np.array([p2.x, p2.y, p2.z])
             u = u / (u**2).sum()**0.5
 
-            from utils import MathTools
-            M = MathTools()
-
             # Gets rotation matrix
-            rot_mat = M.rotation_matrix_axis(radi, u)
+            rot_mat = rotation_matrix_axis(radi, u)
 
             # Gets Translation vector
             translation = translation_vector(self)
@@ -454,8 +344,8 @@ class Replacer:
                 True if the position could be keeped for the merged structure.
             """
 
-            from atom_constants import BONDING_DISTANCES
-            from utils import distance
+            from frag_hop.data.parameters.atom_constants import BONDING_DISTANCES
+            from frag_hop.utils.geometry import distance
 
             keep_position = True
             for atom in self.rotated_fragment.GetAtoms():
@@ -559,6 +449,3 @@ class Replacer:
         except ValueError:
             print('Warning: Skipping fragment, there is no possible position ' +
                   'without overlapping. Default initial position returned. ')
-
-
-

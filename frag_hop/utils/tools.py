@@ -109,124 +109,6 @@ class PDBTools():
             pass
         pdbfh.close()
 
-    def extract_chain(self, chain_id, input_file, output_file):
-        """
-        It extracts a chain from a PDB file and generates a new PDB file only
-        containing this chain.
-
-        Parameters
-        ----------
-        chain_id : str
-            Chain ID.
-        input_file : str
-            Path to the PDB file to extract the chain from.
-        output_file : str
-            Path to the new PDB file to save the extracted chain.
-        """
-        def select_chain(fhandle, chain_set):
-            """
-            Filters the PDB file for specific chain identifiers.
-            """
-
-            records = ('ATOM', 'HETATM', 'TER', 'ANISOU')
-            for line in fhandle:
-                if line.startswith(records):
-                    if line[21] not in chain_set:
-                        continue
-                yield line
-
-        pdbfh = open(input_file, 'r')
-        new_pdb = select_chain(pdbfh, chain_id)
-        outf = open(output_file, 'w')
-        try:
-            for lineno, line in enumerate(new_pdb):
-                outf.write(line)
-        except IOError:
-            pass
-
-
-class MathTools():
-    """
-    Class that contains all methods related to mathematical operations on points
-    and vectors.
-    """
-
-    def rotation_matrix_from_vectors(self, vec1, vec2):
-        """
-        Finds the rotation matrix that aligns vec1 to vec2
-        Parameters
-        ----------
-        vec1: np.array
-            A 3d "source" vector
-        vec2: np.array
-            A 3d "destination" vector
-
-        Returns
-        -------
-        rotation_matrix: np.array
-            A transform matrix (3x3) which when applied to vec1,
-            aligns it with vec2.
-        """
-        a, b = (vec1 / np.linalg.norm(vec1)).reshape(3), \
-               (vec2 / np.linalg.norm(vec2)).reshape(3)
-        v = np.cross(a, b)
-        c = np.dot(a, b)
-        s = np.linalg.norm(v)
-        kmat = np.array([[0, -v[2], v[1]], [v[2], 0, -v[0]], [-v[1], v[0], 0]])
-        rotation_matrix = np.eye(3) + kmat + \
-            kmat.dot(kmat) * ((1 - c) / (s ** 2))
-        return rotation_matrix
-
-    def rotation_matrix_axis(self, radi, u):
-        """
-        Finds the general rotation matrix of a certain angle along an axis
-        defined by a vector.
-
-        Parameters
-        ----------
-        radi : float
-            Rotation angle, in radians.
-        u : np.array
-            A 3d vector defining the rotation axis.
-
-        Returns
-        -------
-        rotation_matrix: np.array
-            A transform matrix (3x3) which when applied to a point, it rotates
-            a certain angle along an axis.
-        """
-        ux, uy, uz = u
-        rotation_matrix =  np.array([[np.cos(radi) + ux**2 * (1 - np.cos(radi)),
-                          ux * uy * (1 - np.cos(radi)) - uz * np.sin(radi),
-                          ux * uz * (1 - np.cos(radi)) + uy * np.sin(radi)],
-                         [uy * ux * (1 - np.cos(radi)) + uz * np.sin(radi),
-                             np.cos(radi) + uy**2 * (1 - np.cos(radi)),
-                          uy * uz * (1 - np.cos(radi)) - ux * np.sin(radi)],
-                         [uz * ux * (1 - np.cos(radi)) - uy * np.sin(radi),
-                          uz * uy * (1 - np.cos(radi)) + ux * np.sin(radi),
-                             np.cos(radi) + uz**2 * (1 - np.cos(radi))]],
-                        dtype=np.double)
-        return rotation_matrix
-
-def distance(x, y):
-    """
-    It computes the distance between two points.
-
-    Parameters
-    ----------
-    x : np.array
-        Point
-    y : np.array
-        Point
-
-    Returns
-    -------
-    dist : float
-        Distance between the two points
-    """
-    import math
-    return math.sqrt((x[0] - y[0]) ** 2 +
-                     (x[1] - y[1]) ** 2 + (x[2] - y[2]) ** 2)
 
 class RDKitTools():
     """
@@ -314,60 +196,49 @@ def perform_residue_substitution(complex_pdb, new_residue_pdb, new_complex_pdb,
     for line in new_file_lines:
         f3.write(line)
 
+class SchrodingerTools():
+    def __init__(self, SCH_PATH):
+        """
+        Parameters
+        ----------
+        SCH_PATH : str
+            Schrodinger’s installation path.
+        self.sch_path = SCH_PATH
+        """
+        self.sch_path = SCH_PATH
 
+    def run_preprocess(self, folder, pdb_in, pdb_out):
+        """
+        It preprocess a PDB file using Schrodinger Protein Preparation Wizzard.
 
-def extract_residue(input_pdb, resname, output_pdb):
-    """
-    It extracts one residue of a PDB file into a separate PDB file.
+        Parameters
+        ----------
 
-    Parameters
-    ----------
-    input_pdb : str
-        Path to the input PDB file.
-    resname : str
-        Name of the residue to extract.
-    output_pdb : str
-        Path to the output PDB file.
-    """
-    f1 = open(input_pdb, 'r')
-    f2 = open(output_pdb, 'w')
-    residue = [line for line in f1.readlines() if resname in line]
+        folder : str
+            Path to the folder containing the PDB file.
+        pdb_in : str
+            Relative path to the input PDB.
+        pdb_out :str
+            Relative path to the output PDB.
+        """
 
-    for line in residue:
-        f2.write(line)
+        curr_dir = os.getcwd()
+        command = '{}/utilities/prepwizard {} {}'.format(self.sch_path, pdb_in,
+                                                         pdb_out)\
+                    + ' -noepik -noccd -noimpref -nohtreat'
 
-def run_preprocess(SCH_PATH, folder, pdb_in, pdb_out):
-    """
-    It preprocess a PDB file using Schrodinger Protein Preparation Wizzard.
+        # Run command to preprocess the PDB
+        os.chdir(folder)
+        os.system(command)
 
-    Parameters
-    ----------
-    SCH_PATH : str
-        Schrodinger’s installation path.
-    folder : str
-        Path to the folder containing the PDB file.
-    pdb_in : str
-        Relative path to the input PDB.
-    pdb_out :str
-        Relative path to the output PDB.
-    """
-
-    curr_dir = os.getcwd()
-    command = '{}/utilities/prepwizard {} {} -noepik -noccd -noimpref'.format(
-                                                    SCH_PATH, pdb_in, pdb_out)
-    # Run command to preprocess the PDB
-    os.chdir(folder)
-    os.system(command)
-
-    # Wait until the output file is created
-    condition = os.path.isfile(pdb_out)
-    while not condition:
+        # Wait until the output file is created
         condition = os.path.isfile(pdb_out)
-        time.sleep(0.1)
+        while not condition:
+            condition = os.path.isfile(pdb_out)
+            time.sleep(0.1)
 
-    # Remove log file
-    os.remove(pdb_in.replace('.pdb', '.log'))
-    os.chdir(curr_dir)
-
+        # Remove log file
+        os.remove(pdb_in.replace('.pdb', '.log'))
+        os.chdir(curr_dir)
 
 
