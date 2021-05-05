@@ -13,7 +13,11 @@ The current supported fragment replacements are:
 
 
 ```bash
-python -m frag_hop.main data/TestingFiles/complexes/covalent.pdb data/TestingFiles/fragments/frag1.pdb -c1 C13-N7 -c2 C1-H4 --covalent
+python -m frag_hop.main data/TestingFiles/complexes/covalent.pdb data/TestingFiles/fragments/frag1.pdb -c1 N7-C2 -c2 C1-H4 --covalent
 ```
 
 ### Protein-ligand complex with non-covalent interactions
+
+```bash
+python -m frag_hop.main data/TestingFiles/complexes/noncovalent.pdb data/TestingFiles/fragments/frag2.pdb -c1 C13-N2 -c2 C4-H8
+```

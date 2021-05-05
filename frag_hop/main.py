@@ -92,17 +92,6 @@ def run_covalent_replacement(complex_pdb, fragment_pdb, resname,
 
     from frag_hop.utils.covalent import get_resnum_from_resname
     RESNUM = get_resnum_from_resname(complex_pdb, resname)
-    print(complex_pdb)
-    print(type(complex_pdb))
-    logging.info('-' * 75)
-    logging.info('Fragment replacement for a protein-ligand complex')
-    logging.info('-' * 75)
-    logging.info(' - Input information:')
-    logging.info('    - Protein-ligand complex PDB: %s',complex_pdb)
-    logging.info('    - Hit fragment PDB: %s', fragment_pdb)
-    logging.info('    - Connectivity scaffold: %s', connectivity1)
-    logging.info('    - Connectivity fragment: %s', connectivity2)
-    logging.info('-' * 75)
 
     # Extract ligand residue
     logging.info(' - Extracting ligand residue')
@@ -180,25 +169,28 @@ def run_replacement(complex_pdb, fragment_pdb, chain_id,
         Schrodinger’s installation path.
     """
 
-    OUTPUT_FOLDER = os.path.join(output, 'out_rep')
     BOND_ATOMS = [connectivity2.split('-'), connectivity1.split('-')]
+    OUTPUT_FOLDER = os.path.join(output, 'out_rep')
+    os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 
     from frag_hop.utils.noncovalent import get_resname_resnum_from_chain
     RESNAME, RESNUM = get_resname_resnum_from_chain(complex_pdb, chain_id)
 
-    os.makedirs(OUTPUT_FOLDER, exist_ok=True)
-
+    logging.info(' - Extracting ligand from chain %s',chain_id)
     from frag_hop.utils.noncovalent import extract_chain
     extract_chain(chain_id=chain_id,
                   input_file=complex_pdb,
                   output_file=os.path.join(OUTPUT_FOLDER, 'LIG_original.pdb'))
 
+    logging.info(' - Preprocessing ligand with Schrodinger Protein ' +
+                 'Preparation Wizzard.')
     from frag_hop.utils.tools import SchrodingerTools
     schrodinger_tools = SchrodingerTools(SCH_PATH=SCH_PATH)
     schrodinger_tools.run_preprocess(folder=OUTPUT_FOLDER,
                                      pdb_in='LIG_original.pdb',
                                      pdb_out='LIG_p.pdb')
 
+    logging.info(' - Preparing fragment.')
     from frag_hop.replacement import Fragment
     fragment = Fragment(initial_complex=complex_pdb,
                         fragment=fragment_pdb,
@@ -206,6 +198,7 @@ def run_replacement(complex_pdb, fragment_pdb, chain_id,
                         resname=RESNAME)
     fragment.to_file(OUTPUT_FOLDER)
 
+    logging.info(' - Replacing selected fragment.')
     from frag_hop.replacement import Replacer
     Replacer(ligand_pdb=os.path.join(OUTPUT_FOLDER, 'LIG_p.pdb'),
              fragment_pdb=os.path.join(OUTPUT_FOLDER, 'frag_prepared.pdb'),
@@ -216,6 +209,7 @@ def run_replacement(complex_pdb, fragment_pdb, chain_id,
              out_folder=OUTPUT_FOLDER)
 
     # Replace the ligand chain in the output PDB to create the complex
+    logging.info(' - Creating output protein-ligand complex PDB file.')
     from frag_hop.utils.noncovalent import perform_chain_substitution
 
     perform_chain_substitution(complex_pdb=complex_pdb,
@@ -224,6 +218,10 @@ def run_replacement(complex_pdb, fragment_pdb, chain_id,
                                new_complex_pdb=os.path.join(OUTPUT_FOLDER,
                                                         'complex_merged.pdb'),
                                chain_id = 'L')
+    logging.info(' - Output files where created sucessfully under the path:')
+    logging.info('    - {}'.format(os.path.join(os.getcwd(),OUTPUT_FOLDER)))
+    logging.info('-' * 75)
+
 
 def main(args):
     """
@@ -245,6 +243,16 @@ def main(args):
     """
     CHAIN_ID = 'L' # Default parameters for non-covalent ligands
     RESNAME_COV = 'GRW' # Default parameters for covalent ligands
+
+    logging.info('-' * 75)
+    logging.info('Fragment replacement for a protein-ligand complex')
+    logging.info('-' * 75)
+    logging.info(' - Input information:')
+    logging.info('    - Protein-ligand complex PDB: %s',args.complex_pdb)
+    logging.info('    - Hit fragment PDB: %s', args.fragment_pdb)
+    logging.info('    - Connectivity scaffold: %s', args.connectivity1)
+    logging.info('    - Connectivity fragment: %s', args.connectivity2)
+    logging.info('-' * 75)
 
     if args.covalent:
         run_covalent_replacement(complex_pdb = args.complex_pdb,

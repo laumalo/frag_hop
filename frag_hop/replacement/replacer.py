@@ -6,6 +6,7 @@ This module containts classes that handle the fragment replacement in a complex.
 from rdkit import Chem
 import numpy as np
 import os
+import logging
 
 #Local imports
 from frag_hop.utils.geometry import rotation_matrix_axis
@@ -95,7 +96,6 @@ class Replacer:
         from rdkit.Chem.rdmolops import FastFindRings
 
         rdkit_tools = RDKitTools()
-
         idx1 = rdkit_tools.get_atomid_by_atomname(self.ligand,
                                                   self.bond_lig[1])
         idx2 = rdkit_tools.get_atomid_by_atomname(self.ligand,
@@ -168,15 +168,17 @@ class Replacer:
         from rdkit.Chem.rdmolops import FastFindRings
         from frag_hop.data.parameters.atom_constants import BONDING_DISTANCES
 
-        rdkit_tools = RDKitTools()
+        logging.info('   - Creating bond between %s(scaffold)',self.bond_lig[1]
+                     + ' and %s(fragment).',self.bond_frag[0])
 
         # Get the ligand ane fragment atom id and atom element for the bond
+        rdkit_tools = RDKitTools()
         lig_idx = rdkit_tools.get_atomid_by_atomname(self.ligand_prepared,
                                                      self.bond_lig[1])
         frag_idx = rdkit_tools.get_atomid_by_atomname(self.fragment,
                                                       self.bond_frag[0]) \
             + len(self.ligand_prepared.GetAtoms())
-
+        print(lig_idx,frag_idx)
         lig_element = rdkit_tools.get_element_by_atomname(self.ligand_prepared,
                                                           self.bond_lig[1])
 
