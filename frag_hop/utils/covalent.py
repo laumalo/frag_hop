@@ -1,3 +1,8 @@
+"""
+This module contains all the funcions needed to handle protein-ligand complexes
+covalently bound.
+"""
+
 
 def extract_residue(input_pdb, resname, output_pdb):
     """
@@ -18,6 +23,7 @@ def extract_residue(input_pdb, resname, output_pdb):
 
     for line in residue:
         f2.write(line)
+
 
 def perform_residue_substitution(complex_pdb, new_residue_pdb, new_complex_pdb,
                                  resname):
@@ -59,7 +65,8 @@ def perform_residue_substitution(complex_pdb, new_residue_pdb, new_complex_pdb,
         lines[lines_to_delete[-1] + 1:]
 
     atom_ids = [int(line[6:11].strip()) for line in new_file_lines
-                if line.startswith('ATOM') or line.startswith('TER')]
+                if line.startswith('ATOM') or line.startswith('TER')
+                and line[6:11].strip() != '']
 
     # Check if the PDB atom ids are unique, if not correct them
     if len(atom_ids) == len(set(atom_ids)):
@@ -70,15 +77,32 @@ def perform_residue_substitution(complex_pdb, new_residue_pdb, new_complex_pdb,
         corrected_lines = []
         for line in new_file_lines:
             if resname in line[17:20]:
-                new_atom_id = str(int(line[6:11].strip())+ max_id).rjust(5)
-                corrected_lines.append(line[0:6]+new_atom_id +line[11:80]+'\n')
+                new_atom_id = str(int(line[6:11].strip()) + max_id).rjust(5)
+                corrected_lines.append(
+                    line[0:6] + new_atom_id + line[11:80] + '\n')
             else:
                 corrected_lines.append(line)
         for line in corrected_lines:
             f3.write(line)
 
-def get_resnum_from_resnum(PATH, resname):
-    with open(PATH, 'r') as f:
+
+def get_resnum_from_resname(path, resname):
+    """
+    It gets the residue sequence number from the residue name in a PDb file.
+
+    Parameters
+    ----------
+    path : str
+        The path to the PDB file.
+    resname : str
+        Residue name
+
+    Returns
+    -------
+    resnum :
+        Residue sequence number
+    """
+    with open(path, 'r') as f:
         lines = f.readlines()
-        resnum = [line[22:26] for line in lines if line[17:20]==resname][0]
+        resnum = [line[22:26] for line in lines if line[17:20] == resname][0]
         return resnum.strip()

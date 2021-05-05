@@ -11,6 +11,11 @@ __email__ = "laura.maloroset@bsc.es"
 # General imports
 import os
 import argparse as ap
+import logging
+import sys
+
+logging.basicConfig(format="%(message)s", level=logging.INFO,
+                    stream=sys.stdout)
 
 def parse_args():
     """
@@ -66,9 +71,11 @@ def run_covalent_replacement(complex_pdb, fragment_pdb, resname,
     Parameters
     ----------
     complex_pdb : str
-        The path to the protein-ligand complex.
+        The path to the protein-ligand complex PDB file.
     fragment_pdb : str
-        The path to the hit fragment.
+        The path to the hit fragment PDB file.
+    resname : str
+        Residue name in which the ligand is.
     connectivity1 : str
         Connection from the ligand to the fragment.
     connectivity2 : str
@@ -79,25 +86,41 @@ def run_covalent_replacement(complex_pdb, fragment_pdb, resname,
         Schrodinger’s installation path.
     """
 
-    OUTPUT_FOLDER = os.path.join(output, 'out_rep')
     BOND_ATOMS = [connectivity2.split('-'), connectivity1.split('-')]
+    OUTPUT_FOLDER = os.path.join(output, 'out_rep')
+    os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 
     from frag_hop.utils.covalent import get_resnum_from_resname
     RESNUM = get_resnum_from_resname(complex_pdb, resname)
+    print(complex_pdb)
+    print(type(complex_pdb))
+    logging.info('-' * 75)
+    logging.info('Fragment replacement for a protein-ligand complex')
+    logging.info('-' * 75)
+    logging.info(' - Input information:')
+    logging.info('    - Protein-ligand complex PDB: %s',complex_pdb)
+    logging.info('    - Hit fragment PDB: %s', fragment_pdb)
+    logging.info('    - Connectivity scaffold: %s', connectivity1)
+    logging.info('    - Connectivity fragment: %s', connectivity2)
+    logging.info('-' * 75)
 
-    os.makedirs(OUTPUT_FOLDER, exist_ok=True)
-
+    # Extract ligand residue
+    logging.info(' - Extracting ligand residue')
     from frag_hop.utils.covalent import extract_residue
     extract_residue(input_pdb=complex_pdb,
                     resname=resname,
                     output_pdb=os.path.join(OUTPUT_FOLDER, 'RES.pdb'))
 
     from frag_hop.utils.tools import SchrodingerTools
+    logging.info(' - Preprocessing ligand with Schrodinger Protein ' +
+                 'Preparation Wizzard.')
     schrodinger_tools = SchrodingerTools(SCH_PATH=SCH_PATH)
     schrodinger_tools.run_preprocess(folder=OUTPUT_FOLDER,
                                      pdb_in='RES.pdb',
                                      pdb_out='RES_p.pdb')
 
+    # Prepare hit fragment
+    logging.info(' - Preparing fragment.')
     from frag_hop.replacement import Fragment
     fragment = Fragment(initial_complex=complex_pdb,
                         fragment=fragment_pdb,
@@ -105,6 +128,8 @@ def run_covalent_replacement(complex_pdb, fragment_pdb, resname,
                         resname=resname)
     fragment.to_file(OUTPUT_FOLDER)
 
+    # Replace hit fragment in the ligand
+    logging.info(' - Replacing selected fragment.')
     from frag_hop.replacement import Replacer
     Replacer(ligand_pdb=os.path.join(OUTPUT_FOLDER, 'RES_p.pdb'),
              fragment_pdb=os.path.join(OUTPUT_FOLDER, 'frag_prepared.pdb'),
@@ -114,6 +139,8 @@ def run_covalent_replacement(complex_pdb, fragment_pdb, resname,
              bond_atoms=BOND_ATOMS,
              out_folder=OUTPUT_FOLDER)
 
+    # Create output protein-ligand complex
+    logging.info(' - Creating output protein-ligand complex PDB file.')
     from frag_hop.utils.covalent import perform_residue_substitution
     perform_residue_substitution(complex_pdb=complex_pdb,
                                  new_residue_pdb=os.path.join(OUTPUT_FOLDER,
@@ -121,6 +148,9 @@ def run_covalent_replacement(complex_pdb, fragment_pdb, resname,
                                  new_complex_pdb=os.path.join(OUTPUT_FOLDER,
                                                         'complex_merged.pdb'),
                                  resname=resname)
+    logging.info(' - Output files where created sucessfully under the path:')
+    logging.info('    - {}'.format(os.path.join(os.getcwd(),OUTPUT_FOLDER)))
+    logging.info('-' * 75)
 
 def run_replacement(complex_pdb, fragment_pdb, chain_id,
                     connectivity1, connectivity2, output,
@@ -135,9 +165,11 @@ def run_replacement(complex_pdb, fragment_pdb, chain_id,
     Parameters
     ----------
     complex_pdb : str
-        The path to the complex PDB.
+        The path to the protein-ligand complex PDB file.
     fragment_pdb : str
-        The path to the fragment PDB.
+        The path to the hit fragment PDB file.
+    chain_id : str
+        Chain Id where the ligand is.
     connectivity1 : str
         Connection from the ligand to the fragment.
     connectivity2 : str
@@ -151,8 +183,8 @@ def run_replacement(complex_pdb, fragment_pdb, chain_id,
     OUTPUT_FOLDER = os.path.join(output, 'out_rep')
     BOND_ATOMS = [connectivity2.split('-'), connectivity1.split('-')]
 
-    from frag_hop.utils.noncovalent import get_resname_resnum
-    RESNAME, RESNUM = get_resname_resnum(complex_pdb, chain_id)
+    from frag_hop.utils.noncovalent import get_resname_resnum_from_chain
+    RESNAME, RESNUM = get_resname_resnum_from_chain(complex_pdb, chain_id)
 
     os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 
@@ -208,10 +240,10 @@ def main(args):
 
     From the command-line:
 
-    >>> python replacement/main.py TestingFiles/covalent_ligand/covalent_covid_scaffold.pdb TestingFiles/covalent_ligand/S1p_6367.pdb -c1 C13-N7 -c2 C1-H4
+    >>> python -m frag_hop.main data/TestingFiles/complexes/covalent.pdb data/TestingFiles/fragments/frag1.pdb -c1 C13-N7 -c2 C1-H4 --covalent
 
     """
-    CHAIN_ID = 'L'
+    CHAIN_ID = 'L' # Default parameters for non-covalent ligands
     RESNAME_COV = 'GRW' # Default parameters for covalent ligands
 
     if args.covalent:

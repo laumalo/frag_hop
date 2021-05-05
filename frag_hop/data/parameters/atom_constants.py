@@ -1,7 +1,11 @@
-# Dictionary of bonding distances in Anstrongs
-# Info extracted from:
-# https://chem.libretexts.org/Bookshelves/Physical_and_Theoretical_Chemistry_Textbook_Maps/Supplemental_Modules_(Physical_and_Theoretical_Chemistry)/Chemical_Bonding/Fundamentals_of_Chemical_Bonding/Chemical_Bonds/Bond_Lengths_and_Energies
-BONDING_DISTANCES = {  # Atom1, Atom2, BondType: Distance(A)
+"""
+Dictionary of bonding distances in Anstrongs
+
+Info extracted from:
+https://chem.libretexts.org/Bookshelves/Physical_and_Theoretical_Chemistry_Textbook_Maps/Supplemental_Modules_(Physical_and_Theoretical_Chemistry)/Chemical_Bonding/Fundamentals_of_Chemical_Bonding/Chemical_Bonds/Bond_Lengths_and_Energies
+"""
+BONDING_DISTANCES = {
+    # Atom1, Atom2, BondType: Distance(A)
     # Bonding with itself
     ("H", "H", "single"): 0.74,
     ("C", "C", "single"): 1.54,

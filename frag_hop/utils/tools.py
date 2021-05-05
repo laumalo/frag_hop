@@ -1,7 +1,9 @@
+"""
+This module containts tools from different external libraries.
+"""
 import collections
 import sys
 import os
-import numpy as np
 import time
 
 
@@ -155,46 +157,6 @@ class RDKitTools():
         return element
 
 
-def perform_residue_substitution(complex_pdb, new_residue_pdb, new_complex_pdb,
-                                 resname):
-    """
-    Given a PDB with a complex and the PDB of the residue that has to be
-    replaced. It replaces from the original complex the residue and exports
-    the PDB of the new strucutre.
-
-    Parameters
-    ----------
-    complex_pdb : str
-        Path to the initial complex PDB.
-    new_residue_pdb : str
-        Path to the residue PDB you want to modidy in the complex.
-    new_complex_pdb : str
-        Path to the output complex PDB with the residue modified.
-    resname : str
-        Residue name for the modified residue.
-    """
-
-    f1 = open(complex_pdb, 'r')
-    f2 = open(new_residue_pdb, 'r')
-    f3 = open(new_complex_pdb, 'w')
-    lines_to_delete, new_lines = ([] for x in range(2))
-
-    # Read original complex
-    lines = f1.readlines()
-    lines_to_delete = [line_num for line_num, line in enumerate(lines)
-                       if resname in line]
-
-    # Load new residue atoms and correct atom numbers format
-    new_lines = [line for line in f2.readlines() if 'ATOM' in line]
-    new_lines = [line[:6] + str(int(line[6:11])).rjust(5) + line[11:]
-                 for line in new_lines]
-
-    # Generate output file for the PDB structure
-    new_file_lines = \
-        lines[:lines_to_delete[0]] + new_lines + \
-        lines[lines_to_delete[-1] + 1:]
-    for line in new_file_lines:
-        f3.write(line)
 
 class SchrodingerTools():
     def __init__(self, SCH_PATH):

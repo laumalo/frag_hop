@@ -136,8 +136,6 @@ class Replacer:
 
         # Assign bond orders
         ref = self.__load_to_rdkit(self.ref_fragment_path)
-        Chem.rdmolfiles.MolToPDBFile(ref,'ref.pdb')
-        Chem.rdmolfiles.MolToPDBFile(self.fragment,'frag.pdb')
         frag_bonds = AllChem.AssignBondOrdersFromTemplate(ref, self.fragment)
 
         # Remove hydrogen
@@ -205,7 +203,7 @@ class Replacer:
         rdMolTransforms.SetBondLength(self.merged.GetConformer(), lig_idx,
                                       frag_idx, new_distance)
 
-    def __export_merged_structure(self, resname='GRW', resnum=145,
+    def __export_merged_structure(self, resname, resnum,
                                   chain_id='A'):
         """
         Exports the PDB files for the merged structure in the necessary formats
@@ -232,11 +230,13 @@ class Replacer:
             if heteroatom is False:
                 try:
                     em = Chem.EditableMol(self.merged)
-                    hn_idx = rdkit_tools.get_atomid_by_atomname(self.merged, 'HN')
+                    hn_idx = rdkit_tools.get_atomid_by_atomname(self.merged,
+                                                                'HN')
                     em.RemoveAtom(hn_idx)
                     self.merged = em.GetMol()
                     em = Chem.EditableMol(self.merged)
-                    hxt_idx = rdkit_tools.get_atomid_by_atomname(self.merged, 'HXT')
+                    hxt_idx = rdkit_tools.get_atomid_by_atomname(self.merged,
+                                                                 'HXT')
                     em.RemoveAtom(hxt_idx)
                     self.merged = em.GetMol()
                 except Exception:
@@ -246,7 +246,7 @@ class Replacer:
                 mi.SetName(a.GetPDBResidueInfo().GetName())
                 mi.SetIsHeteroAtom(heteroatom)
                 mi.SetResidueName(resname)
-                mi.SetResidueNumber(resnum)
+                mi.SetResidueNumber(int(resnum))
                 mi.SetChainId(chain_id)
                 a.SetMonomerInfo(mi)
 
@@ -447,5 +447,7 @@ class Replacer:
             rotate_fragment(radi=rotation_angle * best_rot)
             self.fragment = self.rotated_fragment
         except ValueError:
-            print('Warning: Skipping fragment, there is no possible position ' +
-                  'without overlapping. Default initial position returned. ')
+            import logging
+            logging.warning('Warning: Skipping fragment, there is no  ' +
+                            'possible position without overlapping. Default ' +
+                            'initial position returned. ')

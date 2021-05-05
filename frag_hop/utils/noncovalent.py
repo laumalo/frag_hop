@@ -1,4 +1,7 @@
-
+"""
+This module contains all the funcions needed to handle protein-ligand complexes
+with non-covalent interactions.
+"""
 def extract_chain(chain_id, input_file, output_file):
     """
     It extracts a chain from a PDB file and generates a new PDB file only
@@ -16,8 +19,7 @@ def extract_chain(chain_id, input_file, output_file):
     def select_chain(fhandle, chain_set):
         """
         Filters the PDB file for specific chain identifiers.
-       """
-
+        """
         records = ('ATOM', 'HETATM', 'TER', 'ANISOU')
         for line in fhandle:
             if line.startswith(records):
@@ -79,8 +81,27 @@ def perform_chain_substitution(complex_pdb, new_chain_pdb, new_complex_pdb,
     for line in new_file_lines:
         f3.write(line)
 
-def get_resname_resnum(PATH, chain_id):
-    with open(PATH, 'r') as f:
+def get_resname_resnum_from_chain(path, chain_id):
+    """
+    It gets the residue name and the residue sequence number of the selected
+    chain. COnsider that this is design for ligands where the chain contains a
+    single non-standard residue.
+
+    Parameters
+    ----------
+    path : str
+        The path to the protein-ligand complex PDB file.
+    chain_id : str
+        Chain identifier.
+
+    Returns
+    -------
+    resname : str
+        Residue name.
+    resnum : str
+        Residue sequence number.
+    """
+    with open(path, 'r') as f:
         lines = f.readlines()
         resname = [line[17:20] for line in lines if line[21:22]==chain_id][0]
         resnum = [line[22:26] for line in lines if line[21:22]==chain_id][0]
