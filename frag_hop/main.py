@@ -77,8 +77,11 @@ def main(args):
 
     From the command-line:
 
-    >>> python -m frag_hop.main data/TestingFiles/complexes/covalent.pdb data/TestingFiles/fragments/frag1.pdb -c1 C13-N7 -c2 C1-H4 --covalent
+    >>> python -m frag_hop.main data/TestingFiles/complexes/test_covalent.pdb data/TestingFiles/fragments/frag1.pdb -c data/TestingFiles/test_configurations.conf --covalent
 
+    >>> python -m frag_hop.main data/TestingFiles/complexes/test_noncovalent.pdb data/TestingFiles/fragments/frag2.pdb -c data/TestingFiles/test_configurations.conf
+
+    >>> python -m frag_hop.main data/TestingFiles/complexes/test_scaffold.pdb data/TestingFiles/scaffolds/scaffold_2FJP.pdb -c data/TestingFiles/test_configurations.conf --core
     """
     CHAIN_ID = 'L' # Default parameters for non-covalent ligands
     RESNAME_COV = 'GRW' # Default parameters for covalent ligands
@@ -99,8 +102,8 @@ def main(args):
     logging.info('    - Hit fragment PDB: %s', args.fragment_pdb)
     logging.info('    - Type of fragment replacement: %s', type_rep)
     logging.info('    - Type of ligand: %s', type_ligand)
-    logging.info('    - Connectivity remaining ligand: %s', BONDS_LIG)
-    logging.info('    - Connectivity fragment: %s', BONDS_FRAG)
+    logging.info('    - Connectivity remaining ligand: %s', BONDS_LIG[0])
+    logging.info('    - Connectivity fragment: %s', BONDS_FRAG[0])
     logging.info('-' * 75)
 
     # Scaffold hopping
