@@ -5,19 +5,27 @@
 The `FragHop` (Fragments Hopping) is a Python package capable of replacing fragments in a ligand in a protein-ligand complex in order to generate a similar hit molecule.
 
 The current supported fragment replacements are:
-* Terminal Fragments
+* Terminal Fragments (covalent and non covalent)
+* Scaffolds (only non covalent)
 
 ## Examples
 
-### Protein-ligand complex with covalent interactions
+### Terminal fragments
+
+#### Protein-ligand complex with covalent interactions
 
 
 ```bash
-python -m frag_hop.main data/TestingFiles/complexes/covalent.pdb data/TestingFiles/fragments/frag1.pdb -c1 N7-C2 -c2 C1-H4 --covalent
+python -m frag_hop.main data/TestingFiles/complexes/test_covalent.pdb data/TestingFiles/fragments/frag1.pdb -c data/TestingFiles/test_configurations.conf --covalent
 ```
 
 ### Protein-ligand complex with non-covalent interactions
 
 ```bash
-python -m frag_hop.main data/TestingFiles/complexes/noncovalent.pdb data/TestingFiles/fragments/frag2.pdb -c1 C13-N2 -c2 C4-H8
+python -m frag_hop.main data/TestingFiles/complexes/test_noncovalent.pdb data/TestingFiles/fragments/frag2.pdb -c data/TestingFiles/test_configurations.conf
+```
+# Scaffolds
+### Protein-ligand complex with non-covalent interactions
+```bash
+python -m frag_hop.main data/TestingFiles/complexes/test_scaffold.pdb data/TestingFiles/scaffolds/scaffold_2FJP.pdb -c data/TestingFiles/test_configurations.conf --core
 ```
