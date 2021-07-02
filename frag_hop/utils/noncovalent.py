@@ -61,7 +61,8 @@ def perform_chain_substitution(complex_pdb, new_chain_pdb, new_complex_pdb,
     lines = f1.readlines()
     atoms_to_delete = [line[6:11] for line in lines if line[21:22]==chain_id]
 
-    protein_pdb = [line for line in lines if line.startswith('ATOM')]
+    protein_pdb = [line for line in lines if line.startswith('ATOM') or
+                    line.startswith('TER')]
     protein_connect_pdb = [line for line in lines if line.startswith('CONECT')
                            and not line[6:11] in atoms_to_delete]
 

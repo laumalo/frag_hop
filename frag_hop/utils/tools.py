@@ -156,6 +156,19 @@ class RDKitTools():
                    if atom.GetPDBResidueInfo().GetName().strip() == atom_name][0]
         return element
 
+    def get_bond_type(self, bond_type):
+        from rdkit import Chem
+
+        if bond_type == 'single':
+            order = Chem.rdchem.BondType.SINGLE
+        elif bond_type == 'double':
+            order = Chem.rdchem.BondType.DOUBLE
+        elif bond_type == 'triple':
+            order = Chem.rdchem.BondType.TRIPLE
+        else:
+            raise ValueError(
+                "Wrong bond type for {self.bond_type}.")
+        return order
 
 
 class SchrodingerTools():

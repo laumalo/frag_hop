@@ -4,78 +4,20 @@ fragments.
 """
 
 # General imports
-import mdtraj as md
-import numpy as np
 import os
-import copy
+import tempfile
+from rdkit import Chem
+from rdkit.Chem import AllChem
 
+from frag_hop.replacement.structure import InputStructure, _Structure
+from frag_hop.utils.tools import RDKitTools
 
-class InputStructure:
-    """Object to modify scaffold and fragments structures"""
-
-    def __init__(self, input_file, bond_link=None, top_file=None):
-        """
-        It initialices a InputStructure object.
-
-        Parameters
-        ----------
-        input_file : str
-            Path to the input file.
-        bond_link : list[str]
-            List of the two atoms that conforms the bond representing the
-            attachment vector.
-        top_file : str
-            Path to the topology file.
-        """
-
-        self.structure = self.__load_to_mdtraj(input_file, top_file)
-
-        if bond_link:
-            self.set_bond_to_link(bond_link)
-        else:
-            self.bond_link = bond_link
-
-    def __load_to_mdtraj(self, input_file, top_file):
-        """
-        It loads a PDB file into a mdtraj.structure object.
-
-        Parameters
-        ----------
-        input_file : str
-            Path to the trajectory file.
-        top_file : str
-            Path to the topology file.
-        """
-        if top_file:
-            return md.load(input_file, top=top_file)
-        else:
-            return md.load(input_file)
-
-    def set_bond_to_link(self, new_bond):
-        """
-        It sets the bond to link the scaffold and fragment.
-
-        Parameters
-        ----------
-        new_bond : list[str]
-            List of atom names of the atoms involved in the bond.
-        """
-        if type(new_bond) is list:
-            if len(new_bond) == 2:
-                self.bond_link = new_bond
-            else:
-                raise ValueError(
-                    "Wrong length for {new_bond}. It must be a list" +
-                    " of 2 elements")
-        else:
-            raise TypeError("Wrong type for {new_bond}. It must be a 'list'")
-
-
-class Fragment:
+class Fragment(_Structure):
     """Class to prepare the selected fragment for replacement"""
 
-    def __init__(self, initial_complex, fragment, bond_atoms,
-                 resname, top_complex=None, top_fragment=None):
+    def __init__(self, path_ligand = None, path_fragment = None,
+                 bonds = None, atom_names = None,
+                 top_complex=None, top_fragment=None, resname = 'LIG'):
         """
         It initialices a Fragment object and generates the prepared strcuture
         for the fragment according to the target complex.
@@ -94,102 +36,155 @@ class Fragment:
             Residue name from the complex where the replacement will be
             performed.
         """
+        super().__init__(terminal=True)
 
-        # Complex structure
+        # Scaffold
+        self.path_fragment = path_fragment
+        self.fragment = None
+
+        # Ligand
+        self.ligand = None
+        self.ligand_prepared = None
         self.resname = resname
-        self.initial_complex = InputStructure(initial_complex,
-                                              top_file=top_complex)
-        self.set_complex_link(bond=bond_atoms[1])
 
-        # Initial fragment
-        self.initial_fragment = InputStructure(fragment, top_file=top_fragment)
-        self.set_fragment_link(bond=bond_atoms[0])
+        if path_fragment:
+            self.initialize_from_pdb(path_fragment, bonds)
 
-        # Prepared fragment
-        self.prepared_fragment = copy.deepcopy(self.initial_fragment)
-        self.prepare_fragment()
+        if path_ligand:
+            if bonds is None and atom_names is None:
+                raise AttributeError('To select a fragment from a ligand, ' +
+                                     'atom names or bonds have to be selected.')
+            else:
+                self.initialize_from_ligand(path_ligand, bonds, atom_names)
 
-    def set_complex_link(self, bond):
-        self.initial_complex.set_bond_to_link(bond)
-
-    def set_fragment_link(self, bond):
-        self.initial_fragment.set_bond_to_link(bond)
-
-    def _get_atom_indices(self):
+    def initialize_from_pdb(self, path, bonds):
         """
-        Gets the atoms indixes of the atoms in the ligand and fragment that will
-        be needed for the new connectivity.
+        It initialices an scaffold as a InputStructure object.
 
-        Returns
-        -------
-        atom_indices : tuple
-            Tuple of the pairs of atom indices.
+        Parameters
+        ----------
+        path : str
+            Path to a PDB file containing a scaffold.
+        bonds : list
+            List of bonds representing the connectivity points of the scaffold.
         """
-        def get_idx(atoms, atom_name):
-            return [atom.index for atom in atoms if atom.name == atom_name][0]
+        self.fragment = InputStructure(path, bonds_link=bonds)
 
-        def get_idx_ref(atoms, atom_name, resname=self.resname):
-            return [atom.index for atom in atoms if atom.name == atom_name
-                    and atom.residue.name == resname][0]
-
-        # set atom indices
-        h_idx = get_idx(atoms=self.initial_fragment.structure.top.atoms,
-                        atom_name=self.initial_fragment.bond_link[1])
-        ha_idx = get_idx(atoms=self.initial_fragment.structure.top.atoms,
-                         atom_name=self.initial_fragment.bond_link[0])
-
-        # set atom reference indices
-        h_ref_idx = get_idx_ref(atoms=self.initial_complex.structure.top.atoms,
-                                atom_name=self.initial_complex.bond_link[1])
-
-        ha_ref_idx = get_idx_ref(atoms=self.initial_complex.structure.top.atoms,
-                                 atom_name=self.initial_complex.bond_link[0])
-
-        return [h_idx, ha_idx], [h_ref_idx, ha_ref_idx]
-
-    def _superimpose_fragment_bond(self):
+    def initialize_from_ligand(self, path, bonds, atom_names):
         """
-        Given the attachment vector of the fragment and the attachment vector
-        of the scaffold given by the pair of atoms in that bond, it performs
-        the rotation and translation needed to the fragment to align the
-        fragment attachment vector to the scaffold attachment vector.
+        It initialices a fragment as a InputStructure object from an input
+        ligand.
+
+        It extracts the fragment from the ligand and creates two structures, one
+        containing the fragment and other containing the remaning scaffold of
+        the ligand.
+
+        Parameters
+        ----------
+        path : str
+            Path to a PDB file containing a ligand.
+        bonds : list
+            List of bonds representing the connectivity points of the fragment.
+        atom_names : list
+            List of the atom names comforming the fragment.
         """
-        from frag_hop.utils.geometry import rotation_matrix_from_vectors
 
-        trajA = self.initial_complex.structure
-        trajB = self.prepared_fragment.structure
+        def get_fragment_from_atom_names(molecule, atom_names):
+            """
+            It gets an scaffold structure from a list of atom names.
 
-        # Get atoms of the bond indices
-        atom_indices, atom_ref_indices = self._get_atom_indices()
+            Parameters
+            ----------
+            molecule : an rdkit.Chem.rdchem.Mol object
+                Ligand.
+            atom_names : list
+                List of the atom names comforming the scaffold.
+            """
+            raise NotImplementedError
 
-        # Compute reference vectors
-        vec_ref = trajA.xyz[0, atom_ref_indices[0], :] - \
-            trajA.xyz[0, atom_ref_indices[1], :]
-        vec_ref = vec_ref / (vec_ref**2).sum()**0.5
-        vec = trajB.xyz[0, atom_indices[0], :] - \
-            trajB.xyz[0, atom_indices[1], :]
-        vec = vec / (vec**2).sum()**0.5
+        def get_fragment_from_bonds(molecule, bonds):
+            """
+            It gets an scaffold structure from a list of the bonds that connect
+            the scaffold with the rest of the molecule.
 
-        # Apply rotation
-        rot = rotation_matrix_from_vectors(vec, vec_ref)
-        for i, xyz in enumerate(trajB.xyz[0]):
-            trajB.xyz[0][i] = np.dot(rot, xyz)
+            Parameters
+            ----------
+            molecule : an rdkit.Chem.rdchem.Mol object
+                Ligand.
+            atom_names : list
+                List of the atom names comforming the scaffold.
+            """
+            rdkit_tools = RDKitTools()
 
-        # Apply translation between the heavy atoms
-        translation_distance = trajA.xyz[0, atom_ref_indices[1], :] - \
-            trajB.xyz[0, atom_indices[1], :]
-        for i, xyz in enumerate(trajB.xyz[0]):
-            trajB.xyz[0][i] = xyz + translation_distance
+            # Checks that there are at least to bonds specified
+            bond = bonds[0] if len(bonds) == 1 else bonds
 
-    def prepare_fragment(self):
+            # Breaks the molecule at the selected bonds
+            idx1 = rdkit_tools.get_atomid_by_atomname(molecule, bond[1])
+            idx2 = rdkit_tools.get_atomid_by_atomname(molecule, bond[0])
+
+            Chem.Kekulize(molecule, clearAromaticFlags=True)
+            em = Chem.EditableMol(molecule)
+            em.RemoveBond(idx1, idx2)
+            nm = em.GetMol()
+            nm.GetAtomWithIdx(idx1).SetNoImplicit(True)
+            nm.GetAtomWithIdx(idx2).SetNoImplicit(True)
+
+            frags = Chem.GetMolFrags(nm, asMols=True, sanitizeFrags=False)
+
+            # Extracts the fragment out of the ligand
+            atom_fragment = bond[1].strip()
+            for frag in frags:
+                atom_names = [atom.GetPDBResidueInfo().GetName().strip() for
+                              atom in frag.GetAtoms()]
+                is_fragment = atom_fragment in atom_names
+                if is_fragment:
+                    with tempfile.NamedTemporaryFile(suffix='.pdb') as tmp:
+                        Chem.rdmolfiles.MolToPDBFile(frag, tmp.name)
+                        self.fragment = InputStructure(tmp.name,
+                                                       bonds_link=bonds)
+                else:
+                    with tempfile.NamedTemporaryFile(suffix='.pdb') as tmp:
+                        Chem.rdmolfiles.MolToPDBFile(frag, tmp.name)
+                        self.ligand_prepared = InputStructure(tmp.name,
+                                                              bonds_link=bonds)
+
+        self.ligand = InputStructure(path, bonds_link=bonds)
+
+        # Initializates the scaffold by the selected bonds
+        if not bonds is None:
+            get_fragment_from_bonds(self.ligand.rdkit_mol, bonds)
+
+        # Initializates the scaffold by the selected atom names
+        else:
+            if not atom_names is None:
+                get_fragment_from_atom_names(self.ligand.rdkit_mol, atom_names)
+
+    def prepare(self, target):
         """
         It prepares the input fragment for later fragment replacement techniques
         to generate new molecules.
         """
         # Prepare fragment
-        self._superimpose_fragment_bond()
+        self.superimpose_fragment_bond(self.fragment, target.ligand,
+                                       self.fragment.bonds_link,
+                                       target.ligand.bonds_link)
 
-    def to_file(self, output_path, file_name='frag_prepared.pdb'):
+        # Update RDKit molecule with the obtaind position
+        with tempfile.NamedTemporaryFile(suffix='.pdb') as tmp:
+            self.fragment.structure.save_pdb(tmp.name)
+            self.fragment.rdkit_mol = \
+                Chem.rdmolfiles.MolFromPDBFile(tmp.name, removeHs=False)
+        ref = InputStructure(self.path_fragment)
+        self.fragment.rdkit_mol = AllChem.AssignBondOrdersFromTemplate(
+            ref.rdkit_mol,
+            self.fragment.rdkit_mol)
+
+
+        # Remove hydrogens of the scaffold
+        self.remove_hydrogens(molecule = self.fragment)
+
+    def to_file(self, path, file_name='fragment.pdb'):
         """
         Exports the PDB structure of the prepared fragment.
 
@@ -200,7 +195,9 @@ class Fragment:
         file_name : str
             Output PDB file name. Default: frag_prepared.pdb
         """
-        if not os.path.exists(output_path):
-            os.makedirs(output_path)
-        self.prepared_fragment.structure.save_pdb(os.path.join(output_path,
-                                                               file_name))
+        output_path = os.path.join(path, file_name)
+        Chem.rdmolfiles.MolToPDBFile(self.fragment.rdkit_mol,
+                                     output_path)
+        if self.ligand_prepared is not None:
+            Chem.rdmolfiles.MolToPDBFile(self.ligand_prepared.rdkit_mol,
+                                         os.path.join(path, 'lig_prepared.pdb'))
