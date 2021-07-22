@@ -146,7 +146,7 @@ class FragmentReplacer(object):
             self.new_molecule.UpdatePropertyCache(strict=False)
             Chem.rdmolfiles.MolToPDBFile(self.new_molecule, path)
 
-            from utils import PDBTools
+            from frag_hop.utils.tools import PDBTools
             PDBModifier = PDBTools()
             PDBModifier.rename_atoms_fragment(path)
 
@@ -494,7 +494,7 @@ class ScaffoldReplacer(object):
         self.new_molecule.UpdatePropertyCache(strict=False)
         Chem.rdmolfiles.MolToPDBFile(self.new_molecule, output_path)
 
-        from utils import PDBTools
+        from frag_hop.utils.tools import PDBTools
         PDBModifier = PDBTools()
         PDBModifier.rename_atoms_fragment(output_path)
 

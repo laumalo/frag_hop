@@ -29,7 +29,7 @@ class Scaffold(_Structure):
         path_scaffold : str
             Path to a PDB file containing a scaffold.
         path_ligand : str
-            Path to a PDB file containin a ligand.
+            Path to a PDB file containing a ligand.
         bonds : list
             List of bonds representing the connectivity points of the scaffold.
         atom_names : list

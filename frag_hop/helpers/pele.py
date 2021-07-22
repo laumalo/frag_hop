@@ -7,7 +7,7 @@ import os
 import logging
 
 
-def prepare_folder(FOLDER_TO_PREPARE, conf_file=None, run_file=None):
+def generate_templates(FOLDER_TO_PREPARE):
     """
     It prepares an output folder of FragHop to run a PELE simulation by
     generating the parameters templates and copying the PELE configuration and
@@ -17,14 +17,10 @@ def prepare_folder(FOLDER_TO_PREPARE, conf_file=None, run_file=None):
     ----------
     FOLDER_TO_PREPARE : str
         Path to the folder that to prepare.
-    conf_file : str
-        Path to the configuration file to use.
-    run_file : str
-        Path to the PELE run file to use.
     """
     def generate_parameters(path, output_path,
                             forcefield='OPLS2005',
-                            charge_method='am1bcc'):
+                            charge_method='gasteiger'):
         """
         It generates the parameters of the molecule (from the input_file)
         as DataLocal in the output folder.
@@ -76,39 +72,37 @@ def prepare_folder(FOLDER_TO_PREPARE, conf_file=None, run_file=None):
     import shutil
 
     # Copy complex and residue PDB files
+    logging.info('  -   Preparinf folder for a PELE simulation.')
     os.makedirs(os.path.join(FOLDER_TO_PREPARE, 'lig'), exist_ok=True)
     shutil.copy(os.path.join(FOLDER_TO_PREPARE,
-                             'out_rep/complex_merged.pdb'), FOLDER_TO_PREPARE)
-    shutil.copy(os.path.join(FOLDER_TO_PREPARE, 'out_rep/merged.pdb'),
+                             'out_rep/new_complex.pdb'), FOLDER_TO_PREPARE)
+    shutil.copy(os.path.join(FOLDER_TO_PREPARE, 'out_rep/LIG.pdb'),
                 os.path.join(FOLDER_TO_PREPARE, 'lig/LIG.pdb'))
 
     # Templatizate ligand using Peleffy
     generate_parameters(path=os.path.join(FOLDER_TO_PREPARE, 'lig/LIG.pdb'),
                         output_path=FOLDER_TO_PREPARE)
 
-    if conf_file is not None:
-        shutil.copy(conf_file, os.path.join(FOLDER_TO_PREPARE, 'pele.conf'))
-    else:
-        logging.info('  - No configuration file was provided. It has to be put' +
-                     ' under the folder path before running the PELE simulation.')
+def PELErunner(control_file, PELE_exc, num_proc=16):
+    """
+    It runs a PELE simulation with the protocol described in the fetched control
+    file.
 
-    if run_file is not None:
-        shutil.copu(run_file, os.path.join(FOLDER_TO_PREPARE, 'run.sh'))
+    Parameters
+    ----------
+    control_file : str
+        Path to the control file.
+    PELE_exec : str
+        Path to the PELE executable
+    PELE_src : str
+        Path to PELE source folder
+    """
+    import subprocess
 
-def run_PELE_Job(folder, PELE_exc=None, num_proc=None, run=False):
+    logging.info('  -   Starting PELE simulation.')
+    cmd =  "mpirun -n {} {} {}".format(num_proc, PELE_exc, control_file)
+    subprocess.call(cmd.split())
 
-    os.chdir(folder)
-    if not os.path.isfile(folder, 'run.sh'):
-        path = os.path.abspath('data/parameters/run_example.sh')
-        new_file = open('run.sh', 'w')
-        with open(path, 'r') as f:
-            data = f.readlines()
-            for line in data:
-                line = line.replace('PELE_exc', PELE_exc) \
-                    if 'PELE_exc' in line else line
-                line = line.replace('num_proc', str(num_proc)) \
-                    if 'num_proc' in line else line
-                new_file.write(line)
-    if run:
-        os.system('bash run.sh')
+def FRAGrunner(control_file, frag_conf_file, PELE_exc):
+    raise NotImplementedError()
 

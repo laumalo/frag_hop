@@ -38,8 +38,10 @@ def run_core_replacement(complex_pdb, scaffold_pdb, conf_file,
     # Connectivities scaffold-ligand
     from frag_hop.utils import parse_conf_file
     dict_connectivities = parse_conf_file(file_path=conf_file)
-    BONDS_SCAFFOLD = dict_connectivities.get(scaffold_pdb)
-    BONDS_LIGAND = dict_connectivities.get(complex_pdb)
+    BONDS_SCAFFOLD = dict_connectivities.get(scaffold_pdb.replace(os.getcwd(),
+                                                                  '')[1:])
+    BONDS_LIGAND = dict_connectivities.get(complex_pdb.replace(os.getcwd(),
+                                                                  '')[1:])
 
     # Extract the target ligand from the complex
     from frag_hop.utils.noncovalent import extract_chain
@@ -153,7 +155,7 @@ def run_frag_replacement(complex_pdb, fragment_pdb, conf_file,
     from frag_hop.replacement.replacer import FragmentReplacer
     replacer = FragmentReplacer(hit_fragment=hit_fragment.fragment,
                                 target=target_fragment)
-    replacer.to_file(OUTPUT_FOLDER)
+    replacer.to_file(OUTPUT_FOLDER, chain_id='L')
 
     # Replace the ligand chain in the output PDB to create the complex
     logging.info(' - Creating output protein-ligand complex PDB file.')
@@ -199,8 +201,11 @@ def run_covalent_frag_replacement(complex_pdb, fragment_pdb, conf_file,
     # Connectivities fragment-ligand
     from frag_hop.utils import parse_conf_file
     dict_connectivities = parse_conf_file(file_path=conf_file)
-    BONDS_FRAGMENT = dict_connectivities.get(fragment_pdb)
-    BONDS_LIGAND = dict_connectivities.get(complex_pdb)
+
+    BONDS_FRAGMENT = dict_connectivities.get(fragment_pdb.replace(os.getcwd(),
+                                                                  '')[1:])
+    BONDS_LIGAND = dict_connectivities.get(complex_pdb.replace(os.getcwd(),
+                                                               '')[1:])
 
     OUTPUT_FOLDER = os.path.join(output, 'out_rep')
     os.makedirs(OUTPUT_FOLDER, exist_ok=True)
@@ -254,3 +259,66 @@ def run_covalent_frag_replacement(complex_pdb, fragment_pdb, conf_file,
                                  resname=resname)
     logging.info(' - Output files where created sucessfully under the path:')
     logging.info('    - {}'.format(os.path.join(os.getcwd(),OUTPUT_FOLDER)))
+
+
+class HoppingSelector(object):
+    """ It defines a hopping selector. """
+
+    def __init__(self, core, covalent):
+        """
+        Given if it is a core fragment or not and if the ligand is covalently
+        bound of not to the protein, it selects the corresponding hopping
+        method.
+
+        Parameters
+        ----------
+        core : bool
+            It indicates if the fragment is a scaffold or not.
+        covalent : bool
+             It indicates if the ligand is covalently bound to the protein
+              or not.
+        """
+        self.core = core
+        self.covalent = covalent
+
+    def run(self, complex_pdb, hit_pdb, conf_file, id_lig, output):
+        """
+        It runs the corresponding hopping method.
+
+        Parameters
+        ----------
+        complex_pdb : str
+            The path to the protein-ligand complex PDB file.
+        hit_pdb : str
+            The path to the hit fragment/scaffold PDB file.
+        conf_file : str
+            Path to the configuration file.
+        id_lig : str
+            Chain Id/resname where the ligand is located.
+        output : str
+            Path to the output folder.
+        """
+        # Scaffold hopping
+        if self.core:
+            if self.covalent:
+                raise NotImplementedError
+            else:
+                run_core_replacement(complex_pdb = complex_pdb,
+                                     scaffold_pdb = hit_pdb,
+                                     conf_file = conf_file,
+                                     output = output,
+                                     chain_id = id_lig)
+        # Terminal fragment hopping
+        else:
+            if self.covalent:
+               run_covalent_frag_replacement(complex_pdb = complex_pdb,
+                                             fragment_pdb = hit_pdb,
+                                             conf_file = conf_file,
+                                             output = output,
+                                             resname = id_lig)
+            else:
+                run_frag_replacement(complex_pdb = complex_pdb,
+                                     fragment_pdb = hit_pdb,
+                                     conf_file = conf_file,
+                                     output = output,
+                                     chain_id = id_lig)
