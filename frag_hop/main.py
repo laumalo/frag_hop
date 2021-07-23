@@ -101,9 +101,9 @@ def main(args):
 
     from frag_hop.utils import parse_conf_file
     dict_connectivities = parse_conf_file(file_path=args.conf_file)
+
     BONDS_LIG = dict_connectivities.get(args.complex_pdb)
-    if not is_screening:
-        BONDS_FRAG = dict_connectivities.get(args.fragment_pdb)
+    if not is_screening: BONDS_FRAG = dict_connectivities.get(args.fragment_pdb)
 
     logging.info('-' * 75)
     logging.info('Fragment hopping for a protein-ligand complex')

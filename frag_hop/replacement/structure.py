@@ -223,8 +223,6 @@ class _Structure(object):
             ed_scaffold.RemoveAtom(idx)
             molecule.rdkit_mol = ed_scaffold.GetMol()
 
-
         # Update the RDKit representation of the molecule
-        #molecule.rdkit_mol = ed_scaffold.GetMol()
         FastFindRings(molecule.rdkit_mol)
         molecule.rdkit_mol.UpdatePropertyCache(strict=False)

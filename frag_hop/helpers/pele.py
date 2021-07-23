@@ -104,5 +104,8 @@ def PELErunner(control_file, PELE_exc, num_proc=16):
     subprocess.call(cmd.split())
 
 def FRAGrunner(control_file, frag_conf_file, PELE_exc):
+    """
+    It runs a FragPELE simulation with the protocol described in the fetched
+    control file to grow a fragment.
     raise NotImplementedError()
 
