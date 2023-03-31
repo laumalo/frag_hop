@@ -136,6 +136,7 @@ class Replacer:
 
         # Assign bond orders
         ref = self.__load_to_rdkit(self.ref_fragment_path)
+        ref = Chem.RemoveHs(ref)
         frag_bonds = AllChem.AssignBondOrdersFromTemplate(ref, self.fragment)
 
         # Remove hydrogen
@@ -168,8 +169,8 @@ class Replacer:
         from rdkit.Chem.rdmolops import FastFindRings
         from frag_hop.data.parameters.atom_constants import BONDING_DISTANCES
 
-        logging.info('   - Creating bond between %s(scaffold)',self.bond_lig[1]
-                     + ' and %s(fragment).',self.bond_frag[0])
+        logging.info(f'   - Creating bond between {self.bond_lig[1]}'
+                     + f' and {self.bond_frag[0]}')
 
         # Get the ligand ane fragment atom id and atom element for the bond
         rdkit_tools = RDKitTools()
@@ -178,7 +179,6 @@ class Replacer:
         frag_idx = rdkit_tools.get_atomid_by_atomname(self.fragment,
                                                       self.bond_frag[0]) \
             + len(self.ligand_prepared.GetAtoms())
-        print(lig_idx,frag_idx)
         lig_element = rdkit_tools.get_element_by_atomname(self.ligand_prepared,
                                                           self.bond_lig[1])
 
@@ -256,7 +256,7 @@ class Replacer:
             self.merged.UpdatePropertyCache(strict=False)
             Chem.rdmolfiles.MolToPDBFile(self.merged, path)
 
-            from utils import PDBTools
+            from frag_hop.utils import PDBTools
             PDBModifier = PDBTools()
             PDBModifier.rename_atoms_fragment(path)
 
@@ -442,13 +442,13 @@ class Replacer:
                     self.original_fragment,
                     self.rotated_fragment)
                 d[rot] = usr_value
-
         # Choose the best position for the fragment
         try:
             best_rot = min(d, key=d.get)
             rotate_fragment(radi=rotation_angle * best_rot)
             self.fragment = self.rotated_fragment
         except ValueError:
+
             import logging
             logging.warning('Warning: Skipping fragment, there is no  ' +
                             'possible position without overlapping. Default ' +

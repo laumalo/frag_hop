@@ -13,7 +13,9 @@ import os
 import argparse as ap
 import logging
 import sys
+import shutil
 
+SCHRODINGER_PATH = os.getenv('SCHRODINGER')
 logging.basicConfig(format="%(message)s", level=logging.INFO,
                     stream=sys.stdout)
 
@@ -46,6 +48,9 @@ def parse_args():
 
     parser.add_argument("-o", "--output", type=str, default='out',
                         help="Path to the output folder. Default: out.")
+
+    parser.add_argument("--process", type=bool, default=False,
+                        help="Process input structure.")
 
     parser.add_argument("--covalent",
                         dest="covalent",
@@ -143,7 +148,7 @@ def run_covalent_replacement(complex_pdb, fragment_pdb, resname,
 
 def run_replacement(complex_pdb, fragment_pdb, chain_id,
                     connectivity1, connectivity2, output,
-                    SCH_PATH='/opt/schrodinger/suites2020-4'):
+                    SCH_PATH=SCHRODINGER_PATH, process = False):
     """
     Fragment replacement protocol for protein-ligand complexes with non-covalent
     interactions.
@@ -182,14 +187,17 @@ def run_replacement(complex_pdb, fragment_pdb, chain_id,
                   input_file=complex_pdb,
                   output_file=os.path.join(OUTPUT_FOLDER, 'LIG_original.pdb'))
 
-    logging.info(' - Preprocessing ligand with Schrodinger Protein ' +
-                 'Preparation Wizzard.')
-    from frag_hop.utils.tools import SchrodingerTools
-    schrodinger_tools = SchrodingerTools(SCH_PATH=SCH_PATH)
-    schrodinger_tools.run_preprocess(folder=OUTPUT_FOLDER,
-                                     pdb_in='LIG_original.pdb',
-                                     pdb_out='LIG_p.pdb')
-
+    if process:
+        logging.info(' - Preprocessing ligand with Schrodinger Protein ' +
+                     'Preparation Wizzard.')
+        from frag_hop.utils.tools import SchrodingerTools
+        schrodinger_tools = SchrodingerTools(SCH_PATH=SCH_PATH)
+        schrodinger_tools.run_preprocess(folder=OUTPUT_FOLDER,
+                                         pdb_in='LIG_original.pdb',
+                                         pdb_out='LIG_p.pdb')
+    else:
+        shutil.copy(f'{OUTPUT_FOLDER}/LIG_original.pdb',
+                    f'{OUTPUT_FOLDER}/LIG_p.pdb')
     logging.info(' - Preparing fragment.')
     from frag_hop.replacement import Fragment
     fragment = Fragment(initial_complex=complex_pdb,

@@ -185,8 +185,7 @@ class SchrodingerTools():
         """
 
         curr_dir = os.getcwd()
-        command = '{}/utilities/prepwizard {} {}'.format(self.sch_path, pdb_in,
-                                                         pdb_out)\
+        command = f'{self.sch_path}/utilities/prepwizard {pdb_in} {pdb_out}'\
                     + ' -noepik -noccd -noimpref -nohtreat'
 
         # Run command to preprocess the PDB
