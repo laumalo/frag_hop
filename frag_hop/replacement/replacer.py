@@ -136,7 +136,7 @@ class Replacer:
 
         # Assign bond orders
         ref = self.__load_to_rdkit(self.ref_fragment_path)
-        ref = Chem.RemoveHs(ref)
+        #ref = Chem.RemoveHs(ref)
         frag_bonds = AllChem.AssignBondOrdersFromTemplate(ref, self.fragment)
 
         # Remove hydrogen
