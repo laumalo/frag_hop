@@ -12,8 +12,8 @@ setuptools.setup(
     url="https://github.com/laumalo/frag_hop",
     packages=[
         'frag_hop',
-        'frag_hop/tests',
         'frag_hop/data',
+        'frag_hop/data/parameters',
         'frag_hop/replacement',
         'frag_hop/utils'
     ],
