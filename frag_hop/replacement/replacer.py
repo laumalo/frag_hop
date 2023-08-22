@@ -63,7 +63,11 @@ class Replacer:
         self.correct_fragment()
 
         self.rotated_fragment = None
-        self.get_best_dihedral_angle()
+        if self.corrected_fragment.GetNumAtoms() < 3:
+            self.fragment = self.corrected_fragment
+            print('No dihedral calculation, only 2 atoms fragment')
+        else:
+            self.get_best_dihedral_angle()
 
         # Merge structure
         self.merged = None
