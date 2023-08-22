@@ -1,14 +1,12 @@
-Metadata-Version: 1.2
+Metadata-Version: 2.1
 Name: frag-hop
 Version: 0.0.1
 Summary: Fragment Hopping
 Home-page: https://github.com/laumalo/frag_hop
 Author: Laura Malo
 Author-email: laumaro95@gmail.com
-License: UNKNOWN
-Description: UNKNOWN
-Platform: UNKNOWN
 Classifier: Programming Language :: Python :: 3
 Classifier: License :: OSI Approved :: MIT License
 Classifier: Operating System :: OS Independent
 Requires-Python: >=3.6
+License-File: LICENSE

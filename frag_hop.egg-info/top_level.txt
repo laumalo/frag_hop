@@ -1,5 +1,5 @@
 frag_hop
 frag_hop/data
+frag_hop/data/parameters
 frag_hop/replacement
-frag_hop/tests
 frag_hop/utils

@@ -150,7 +150,11 @@ class Replacer:
         mol = ed_frag.GetMol()
         FastFindRings(mol)
         mol.UpdatePropertyCache(strict=False)
-        Chem.rdmolfiles.MolToPDBFile(mol, self.fragment_path)
+        self.corrected_fragment = mol
+        try:
+            Chem.rdmolfiles.MolToPDBFile(mol, self.fragment_path)
+        except:
+            logging.warning('Warning: cannot kekulize the corrected fragment')
 
 
     def __generate_merged_structure(self):
@@ -305,7 +309,8 @@ class Replacer:
                 return p_ref - p_ref_rot
 
             # Resets the rotated fragment
-            self.rotated_fragment = self.__load_to_rdkit(self.fragment_path)
+            #self.rotated_fragment = self.__load_to_rdkit(self.fragment_path)
+            self.rotated_fragment = self.corrected_fragment
 
             # Computes vector to be used as axis of rotation
             idx1 = rdkit_tools.get_atomid_by_atomname(self.ligand,
